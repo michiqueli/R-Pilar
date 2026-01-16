@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://grupoxpilar.com/sitemap.xml
