@@ -160,7 +160,6 @@ function ProjectsListPage() {
                     {filteredProjects.length}
                  </span>
                </h1>
-               <p className="text-slate-500 mt-1 max-w-lg">{t('projects.subtitle')}</p>
              </div>
 
              <Button 
