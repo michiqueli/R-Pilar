@@ -8,6 +8,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { Card } from '@/components/ui/Card';
+import KpiCard from '@/components/ui/KpiCard';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Edit, Mail, Phone, MapPin, Building2, TrendingUp, AlertTriangle, CheckCircle2, DollarSign } from 'lucide-react';
@@ -192,45 +193,36 @@ const ClientDetailPage = () => {
 
           {/* KPIs Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-4 flex flex-col justify-between h-28">
-               <div className="flex items-start justify-between">
-                  <span className="text-slate-500 text-sm font-medium">Proyectos Activos</span>
-                  <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600">
-                     <TrendingUp className="w-4 h-4" />
-                  </div>
-               </div>
-               <div className="text-3xl font-bold text-slate-900 dark:text-white">{kpis.activeProjects}</div>
-            </Card>
+            <KpiCard
+              title="Proyectos Activos"
+              value={kpis.activeProjects}
+              icon={TrendingUp}
+              tone="blue"
+            />
 
-            <Card className="p-4 flex flex-col justify-between h-28">
-               <div className="flex items-start justify-between">
-                  <span className="text-slate-500 text-sm font-medium">Facturado 30 días</span>
-                  <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-emerald-600">
-                     <DollarSign className="w-4 h-4" />
-                  </div>
-               </div>
-               <div className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(kpis.billedLast30Days)}</div>
-            </Card>
+            <KpiCard
+              title="Facturado 30 días"
+              value={formatCurrency(kpis.billedLast30Days)}
+              icon={DollarSign}
+              tone="emerald"
+              showBar
+            />
 
-            <Card className="p-4 flex flex-col justify-between h-28">
-               <div className="flex items-start justify-between">
-                  <span className="text-slate-500 text-sm font-medium">Facturado 12 meses</span>
-                  <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-purple-600">
-                     <DollarSign className="w-4 h-4" />
-                  </div>
-               </div>
-               <div className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(kpis.billedLast12Months)}</div>
-            </Card>
+            <KpiCard
+              title="Facturado 12 meses"
+              value={formatCurrency(kpis.billedLast12Months)}
+              icon={DollarSign}
+              tone="purple"
+              showBar
+            />
 
-            <Card className="p-4 flex flex-col justify-between h-28 border-l-4 border-l-red-500">
-               <div className="flex items-start justify-between">
-                  <span className="text-slate-500 text-sm font-medium">Deuda Pendiente</span>
-                  <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg text-red-600">
-                     <AlertTriangle className="w-4 h-4" />
-                  </div>
-               </div>
-               <div className="text-2xl font-bold text-red-600">{formatCurrency(kpis.outstandingDebt)}</div>
-            </Card>
+            <KpiCard
+              title="Deuda Pendiente"
+              value={formatCurrency(kpis.outstandingDebt)}
+              icon={AlertTriangle}
+              tone="red"
+              valueClassName="text-red-600 dark:text-red-400"
+            />
           </div>
 
           {/* Tabs Section */}

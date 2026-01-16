@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/Select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import DatePickerInput from '@/components/ui/DatePickerInput';
-import { cn } from '@/lib/utils';
 
 const MovementFiltersPopover = ({
   isOpen,
@@ -48,20 +47,26 @@ const MovementFiltersPopover = ({
       <PopoverTrigger asChild>
         {trigger}
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-4" align="start">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="font-semibold text-sm">Filtros</h4>
-          <Button variant="ghost" size="iconSm" onClick={onClose} className="h-6 w-6">
-            <X className="h-4 w-4" />
-          </Button>
+      <PopoverContent
+        className="w-[320px] md:w-[360px] p-0 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden"
+        align="end"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+          <h4 className="font-semibold text-slate-900 dark:text-white">Filtros</h4>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="p-5 space-y-5 max-h-[60vh] overflow-y-auto">
           {/* Tipo */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Tipo</Label>
+            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo</Label>
             <Select value={filters.tipo} onValueChange={(val) => handleChange('tipo', val)}>
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-10 text-sm">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
@@ -76,9 +81,9 @@ const MovementFiltersPopover = ({
 
           {/* Estado */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Estado</Label>
+            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</Label>
             <Select value={filters.estado} onValueChange={(val) => handleChange('estado', val)}>
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-10 text-sm">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
@@ -92,28 +97,28 @@ const MovementFiltersPopover = ({
           {/* Fechas */}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1.5">
-              <Label className="text-xs">Desde</Label>
+              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Desde</Label>
               <DatePickerInput
                 date={filters.dateStart}
                 onSelect={(date) => handleChange('dateStart', date)}
-                className="h-8 text-xs"
+                className="h-10 text-sm"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Hasta</Label>
+              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hasta</Label>
               <DatePickerInput
                 date={filters.dateEnd}
                 onSelect={(date) => handleChange('dateEnd', date)}
-                className="h-8 text-xs"
+                className="h-10 text-sm"
               />
             </div>
           </div>
 
           {/* Cuenta */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Cuenta</Label>
+            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cuenta</Label>
             <Select value={filters.cuenta} onValueChange={(val) => handleChange('cuenta', val)}>
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-10 text-sm">
                 <SelectValue placeholder="Todas" />
               </SelectTrigger>
               <SelectContent>
@@ -127,9 +132,9 @@ const MovementFiltersPopover = ({
 
           {/* Proveedor */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Proveedor</Label>
+            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Proveedor</Label>
             <Select value={filters.proveedor} onValueChange={(val) => handleChange('proveedor', val)}>
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-10 text-sm">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
@@ -141,14 +146,23 @@ const MovementFiltersPopover = ({
             </Select>
           </div>
 
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={handleClear} className="flex-1 text-xs">
-              Limpiar
-            </Button>
-            <Button variant="primary" size="sm" onClick={handleApply} className="flex-1 text-xs">
-              Aplicar
-            </Button>
-          </div>
+        </div>
+
+        <div className="p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+          <Button
+            variant="outline"
+            onClick={handleClear}
+            className="flex-1 rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-900/20"
+          >
+            Limpiar
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleApply}
+            className="flex-1 rounded-full bg-blue-600 hover:bg-blue-700"
+          >
+            Aplicar
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

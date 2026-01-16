@@ -10,7 +10,7 @@ import { useTheme } from '@/contexts/ThemeProvider';
 import ProviderModal from '@/components/providers/ProviderModal';
 import ProvidersTable from '@/components/providers/ProvidersTable';
 import ProvidersCards from '@/components/providers/ProvidersCards';
-import ProvidersFiltersPanel from '@/components/providers/ProvidersFiltersPanel';
+import ProviderFilterPopover from '@/components/providers/ProviderFilterPopover';
 import ProvidersEmptyState from '@/components/providers/ProvidersEmptyState';
 import usePageTitle from '@/hooks/usePageTitle';
 
@@ -170,9 +170,9 @@ function ProvidersPage() {
              <div className="w-full h-px md:w-px md:h-8 bg-slate-100 dark:bg-slate-800 mx-2" />
              
              <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
-                 <ProvidersFiltersPanel 
-                    filters={filters}
-                    onFiltersChange={setFilters}
+                 <ProviderFilterPopover 
+                   filters={filters}
+                   onFiltersChange={setFilters}
                  />
 
                  <div className="h-8 w-px bg-slate-100 dark:bg-slate-800 mx-1" />

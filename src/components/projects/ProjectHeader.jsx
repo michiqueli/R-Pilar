@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Edit, Calendar, User } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/dateUtils';
 
 const STATUS_COLORS = {
