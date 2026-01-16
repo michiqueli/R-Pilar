@@ -4,7 +4,7 @@ import { Plus, Search, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/switch';
 import AccountModal from '@/components/accounts/AccountModal';
 import usePageTitle from '@/hooks/usePageTitle';
