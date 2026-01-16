@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
+import { X } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -13,11 +14,19 @@ import FilterButton from '@/components/common/FilterButton';
 
 const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
   const { t } = useTheme();
+  const [isOpen, setIsOpen] = useState(false);
+  const [localFilters, setLocalFilters] = useState(filters);
+
+  useEffect(() => {
+    if (isOpen) {
+      setLocalFilters(filters);
+    }
+  }, [isOpen, filters]);
 
   const hasActiveFilters = 
-    filters.status !== 'all' || 
-    filters.dateRange !== 'all' || 
-    filters.projects !== 'all';
+    localFilters.status !== 'all' || 
+    localFilters.dateRange !== 'all' || 
+    localFilters.projects !== 'all';
 
   const activeCount = [
     filters.status !== 'all',
@@ -26,15 +35,23 @@ const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
   ].filter(Boolean).length;
 
   const handleFilterChange = (key, value) => {
-    onFiltersChange({ ...filters, [key]: value });
+    setLocalFilters({ ...localFilters, [key]: value });
   };
 
   const clearFilters = () => {
-    onFiltersChange({
+    const cleared = {
       status: 'all',
       dateRange: 'all',
       projects: 'all'
-    });
+    };
+    setLocalFilters(cleared);
+    onFiltersChange(cleared);
+    setIsOpen(false);
+  };
+
+  const handleApply = () => {
+    onFiltersChange(localFilters);
+    setIsOpen(false);
   };
 
   const RadioGroup = ({ options, value, onChange, name }) => (
@@ -71,24 +88,23 @@ const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
   );
 
   return (
-    <Popover>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <FilterButton 
            activeCount={activeCount}
            label={t('clients.filters')}
+           isActive={isOpen}
         />
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0 rounded-[12px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden" align="end">
+      <PopoverContent className="w-[320px] md:w-[360px] p-0 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl overflow-hidden" align="end">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/50">
           <h4 className="font-semibold text-slate-900 dark:text-white">{t('clients.filters')}</h4>
-          {hasActiveFilters && (
-            <button 
-              onClick={clearFilters}
-              className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-            >
-              {t('common.clearFilters')}
-            </button>
-          )}
+          <button
+            onClick={() => setIsOpen(false)}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         <div className="p-5 space-y-6 max-h-[400px] overflow-y-auto">
@@ -97,7 +113,7 @@ const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
             <Label className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">{t('clients.filterStatus')}</Label>
             <RadioGroup 
               name="status"
-              value={filters.status}
+              value={localFilters.status}
               onChange={(val) => handleFilterChange('status', val)}
               options={[
                 { label: t('clients.all'), value: 'all' },
@@ -114,7 +130,7 @@ const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
             <Label className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">{t('clients.filterDate')}</Label>
             <RadioGroup 
               name="date"
-              value={filters.dateRange}
+              value={localFilters.dateRange}
               onChange={(val) => handleFilterChange('dateRange', val)}
               options={[
                 { label: t('clients.all'), value: 'all' },
@@ -132,7 +148,7 @@ const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
             <Label className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">{t('clients.filterProjects')}</Label>
             <RadioGroup 
               name="projects"
-              value={filters.projects}
+              value={localFilters.projects}
               onChange={(val) => handleFilterChange('projects', val)}
               options={[
                 { label: t('clients.all'), value: 'all' },
@@ -154,7 +170,7 @@ const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
            </Button>
            <Button 
              variant="primary" 
-             onClick={() => {/* Apply happens automatically but visual button helps UX */}}
+             onClick={handleApply}
              className="flex-1 rounded-full px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150"
            >
              {t('common.applyFilters')}

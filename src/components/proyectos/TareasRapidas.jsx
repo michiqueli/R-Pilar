@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 
 const TareasRapidas = ({ projectId, onTaskChange }) => {
   const [tasks, setTasks] = useState([]);

@@ -4,7 +4,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Plus, TrendingUp, AlertCircle, CheckCircle2, DollarSign, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
-import { Card } from '@/components/ui/Card';
+import KpiCard from '@/components/ui/KpiCard';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/components/ui/use-toast';
@@ -72,23 +72,27 @@ const ClientPaymentsTab = ({ clientId }) => {
     <div className="space-y-6">
        {/* Secondary KPIs */}
        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-4 bg-slate-50 dark:bg-slate-800/50 border-none">
-             <div className="text-sm text-slate-500 mb-1">Total Facturado</div>
-             <div className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(stats.billed)}</div>
-          </Card>
-          <Card className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border-none">
-             <div className="text-sm text-emerald-600 dark:text-emerald-400 mb-1">Total Cobrado</div>
-             <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-500">{formatCurrency(stats.collected)}</div>
-          </Card>
-          <Card className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-             <div className="text-sm text-slate-500 mb-1">Saldo Pendiente</div>
-             <div className={`text-2xl font-bold ${stats.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {formatCurrency(stats.balance)}
-             </div>
-             <div className="text-xs text-slate-400 mt-1">
-                {stats.balance > 0 ? 'El cliente debe' : 'A favor / Al día'}
-             </div>
-          </Card>
+          <KpiCard
+            title="Total Facturado"
+            value={formatCurrency(stats.billed)}
+            icon={FileText}
+            tone="blue"
+          />
+          <KpiCard
+            title="Total Cobrado"
+            value={formatCurrency(stats.collected)}
+            icon={DollarSign}
+            tone="emerald"
+            showBar
+          />
+          <KpiCard
+            title="Saldo Pendiente"
+            value={formatCurrency(stats.balance)}
+            icon={DollarSign}
+            tone={stats.balance > 0 ? 'red' : 'emerald'}
+            valueClassName={stats.balance > 0 ? 'text-red-600' : 'text-emerald-600'}
+            description={stats.balance > 0 ? 'El cliente debe' : 'A favor / Al día'}
+          />
        </div>
 
        <div className="flex justify-between items-center pt-2">

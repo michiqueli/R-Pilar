@@ -5,7 +5,7 @@ import { ArrowLeft, Edit, Phone, Mail, FileText, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ProviderModal from '@/components/providers/ProviderModal';
 import ProviderMovementsTab from '@/components/providers/tabs/ProviderMovementsTab';

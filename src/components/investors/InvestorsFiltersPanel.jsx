@@ -1,16 +1,23 @@
 
-import React, { useState } from 'react';
-import { Filter, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { cn } from '@/lib/utils';
+import FilterButton from '@/components/common/FilterButton';
 
 const InvestorsFiltersPanel = ({ filters, onFiltersChange }) => {
   const { t } = useTheme();
   const [open, setOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState(filters);
+
+  useEffect(() => {
+    if (open) {
+      setLocalFilters(filters);
+    }
+  }, [open, filters]);
 
   const handleApply = () => {
     onFiltersChange(localFilters);
@@ -29,25 +36,18 @@ const InvestorsFiltersPanel = ({ filters, onFiltersChange }) => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className={cn(
-          "rounded-[8px] px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150 border-gray-200 dark:border-gray-700 bg-transparent h-9",
-          open && "bg-gray-100 dark:bg-gray-800"
-        )}>
-          <Filter className="w-4 h-4 mr-2 text-gray-500" />
-          <span className="text-gray-700 dark:text-gray-300 text-sm">{t('investors.filters')}</span>
-          {activeCount > 0 && (
-            <span className="ml-2 flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold text-white rounded-full bg-[#3B82F6] shadow-sm">
-              {activeCount}
-            </span>
-          )}
-        </Button>
+        <FilterButton
+          activeCount={activeCount}
+          label={t('investors.filters')}
+          isActive={open}
+        />
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0 rounded-[12px] shadow-lg border border-gray-200 dark:border-[#374151] bg-white dark:bg-[#111827] overflow-hidden" align="start">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
-           <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{t('investors.filters')}</h3>
+      <PopoverContent className="w-[320px] md:w-[360px] p-0 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden" align="end">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+           <h3 className="font-semibold text-slate-900 dark:text-white text-sm">{t('investors.filters')}</h3>
            <button 
              onClick={() => setOpen(false)}
-             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
            >
              <X className="w-5 h-5" />
            </button>
@@ -56,10 +56,10 @@ const InvestorsFiltersPanel = ({ filters, onFiltersChange }) => {
         <div className="p-5 space-y-6">
           {/* Status Filter */}
           <div>
-             <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 block">
+             <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 block">
                {t('investors.status')}
              </Label>
-             <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                {[
                  { label: t('common.all'), value: 'all' },
                  { label: t('investors.active'), value: 'active' },
@@ -71,8 +71,8 @@ const InvestorsFiltersPanel = ({ filters, onFiltersChange }) => {
                    className={cn(
                      "flex-1 py-1.5 text-xs font-medium rounded-md transition-all",
                      localFilters.status === opt.value
-                       ? "bg-white dark:bg-gray-700 text-[#3B82F6] dark:text-[#93C5FD] shadow-sm"
-                       : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                       ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                       : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
                    )}
                  >
                    {opt.label}
@@ -82,18 +82,18 @@ const InvestorsFiltersPanel = ({ filters, onFiltersChange }) => {
           </div>
         </div>
 
-        <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800 flex gap-3">
+        <div className="p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex gap-3">
            <Button
              variant="outline"
              onClick={handleClear}
-             className="flex-1 rounded-full border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 h-9 text-xs"
+             className="flex-1 rounded-full border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-900/20 h-9 text-xs"
            >
              {t('common.clearFilters')}
            </Button>
            <Button
              variant="primary"
              onClick={handleApply}
-             className="flex-1 rounded-full bg-[#3B82F6] hover:bg-blue-700 text-white shadow-md h-9 text-xs"
+             className="flex-1 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md h-9 text-xs"
            >
              {t('common.applyFilters')}
            </Button>

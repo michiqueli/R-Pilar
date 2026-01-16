@@ -1,12 +1,13 @@
 
 import React, { useState } from 'react';
-import { Filter, X, CheckCircle2, Calendar, DollarSign } from 'lucide-react';
+import { X, CheckCircle2, Calendar, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/contexts/ThemeProvider';
+import FilterButton from '@/components/common/FilterButton';
 
 const STATUS_OPTIONS = [
   { value: 'PAGADO', label: 'Pagado' },
@@ -57,23 +58,19 @@ const MovimientosFiltersPopover = ({ filters, onApply, onClear }) => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className={`rounded-[8px] px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150 border-gray-200 dark:border-gray-700 bg-transparent ${open ? 'bg-gray-100 dark:bg-gray-800' : ''}`}>
-          <Filter className="w-4 h-4 mr-2 text-gray-500" />
-          <span className="text-gray-700 dark:text-gray-300">{t('common.filters')}</span>
-          {activeCount > 0 && (
-            <span className="ml-2 flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold text-white rounded-full bg-red-500 shadow-sm">
-              {activeCount}
-            </span>
-          )}
-        </Button>
+        <FilterButton
+          activeCount={activeCount}
+          label={t('common.filters')}
+          isActive={open}
+        />
       </PopoverTrigger>
-      <PopoverContent className="w-[320px] md:w-[360px] p-0 rounded-[12px] shadow-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111827] overflow-hidden" align="start">
+      <PopoverContent className="w-[320px] md:w-[360px] p-0 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden" align="end">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
-           <h3 className="font-semibold text-gray-900 dark:text-white">{t('projects.filterPanel.title')}</h3>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+           <h3 className="font-semibold text-slate-900 dark:text-white">{t('projects.filterPanel.title')}</h3>
            <button 
              onClick={() => setOpen(false)}
-             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
            >
              <X className="w-5 h-5" />
            </button>
@@ -82,18 +79,18 @@ const MovimientosFiltersPopover = ({ filters, onApply, onClear }) => {
         <div className="p-5 space-y-6 max-h-[60vh] overflow-y-auto">
           {/* Type */}
           <div>
-            <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                <CheckCircle2 className="w-3.5 h-3.5" /> {t('movimientos.tipo')}
             </Label>
-            <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+            <div className="flex gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                {['todos', 'ingreso', 'gasto'].map(type => (
                  <button
                    key={type}
                    onClick={() => setLocalFilters({ ...localFilters, type })}
                    className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all capitalize ${
                      localFilters.type === type
-                       ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                       : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                       ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                       : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
                    }`}
                  >
                    {t(`movimientos.${type}`)}
@@ -104,7 +101,7 @@ const MovimientosFiltersPopover = ({ filters, onApply, onClear }) => {
 
           {/* Status */}
           <div>
-            <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
               <CheckCircle2 className="w-3.5 h-3.5" /> {t('common.status')}
             </Label>
             <div className="space-y-2.5">
@@ -114,11 +111,11 @@ const MovimientosFiltersPopover = ({ filters, onApply, onClear }) => {
                     id={`status-${option.value}`}
                     checked={localFilters.status?.includes(option.value)}
                     onCheckedChange={() => handleStatusChange(option.value)}
-                    className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 border-gray-300 dark:border-gray-600"
+                    className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 border-slate-300 dark:border-slate-600"
                   />
                   <label
                     htmlFor={`status-${option.value}`}
-                    className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none"
+                    className="text-sm text-slate-700 dark:text-slate-300 cursor-pointer select-none"
                   >
                     {option.label}
                   </label>
@@ -129,24 +126,24 @@ const MovimientosFiltersPopover = ({ filters, onApply, onClear }) => {
 
           {/* Date Range */}
           <div>
-            <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5" /> {t('movimientos.date_range')}
             </Label>
             <div className="flex gap-3">
                <div className="flex-1 space-y-1">
-                 <span className="text-[10px] text-gray-400 font-semibold uppercase">{t('movimientos.from')}</span>
+                 <span className="text-[10px] text-slate-400 font-semibold uppercase">{t('movimientos.from')}</span>
                  <Input 
                    type="date" 
-                   className="rounded-lg h-9 text-xs border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                   className="rounded-lg h-9 text-xs border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
                    value={localFilters.dateFrom || ''}
                    onChange={(e) => setLocalFilters({...localFilters, dateFrom: e.target.value})}
                  />
                </div>
                <div className="flex-1 space-y-1">
-                 <span className="text-[10px] text-gray-400 font-semibold uppercase">{t('movimientos.to')}</span>
+                 <span className="text-[10px] text-slate-400 font-semibold uppercase">{t('movimientos.to')}</span>
                  <Input 
                    type="date" 
-                   className="rounded-lg h-9 text-xs border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                   className="rounded-lg h-9 text-xs border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
                    value={localFilters.dateTo || ''}
                    onChange={(e) => setLocalFilters({...localFilters, dateTo: e.target.value})}
                  />
@@ -156,7 +153,7 @@ const MovimientosFiltersPopover = ({ filters, onApply, onClear }) => {
 
           {/* Amount Range */}
            <div>
-            <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
               <DollarSign className="w-3.5 h-3.5" /> {t('common.amount')}
             </Label>
             <div className="flex gap-3">
@@ -164,7 +161,7 @@ const MovimientosFiltersPopover = ({ filters, onApply, onClear }) => {
                  <Input 
                    type="number" 
                    placeholder="Min"
-                   className="rounded-lg h-9 text-xs border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                   className="rounded-lg h-9 text-xs border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
                    value={localFilters.amountMin || ''}
                    onChange={(e) => setLocalFilters({...localFilters, amountMin: e.target.value})}
                  />
@@ -173,7 +170,7 @@ const MovimientosFiltersPopover = ({ filters, onApply, onClear }) => {
                  <Input 
                    type="number" 
                    placeholder="Max"
-                   className="rounded-lg h-9 text-xs border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                   className="rounded-lg h-9 text-xs border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
                    value={localFilters.amountMax || ''}
                    onChange={(e) => setLocalFilters({...localFilters, amountMax: e.target.value})}
                  />
@@ -183,7 +180,7 @@ const MovimientosFiltersPopover = ({ filters, onApply, onClear }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800 flex gap-3">
+        <div className="p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex gap-3">
            <Button
              variant="outline"
              onClick={handleClear}

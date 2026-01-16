@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/Select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import DatePickerInput from '@/components/ui/DatePickerInput';
-import { cn } from '@/lib/utils';
 
 const MovementFiltersPopover = ({
   isOpen,

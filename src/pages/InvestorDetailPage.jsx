@@ -13,6 +13,7 @@ import InvestorModal from '@/components/investors/InvestorModal';
 import InvestorSummaryView from '@/components/investors/InvestorSummaryView';
 import InversionistaMovimientosTab from '@/components/inversionistas/tabs/InversionistaMovimientosTab'; 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import KpiCard from '@/components/ui/KpiCard';
 import usePageTitle from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 
@@ -154,42 +155,32 @@ const InvestorDetailPage = () => {
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               {/* Total Invertido */}
-               <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                     <TrendingUp className="w-12 h-12 text-green-500" />
-                  </div>
-                  <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('investments.totalInvertido')}</h3>
-                  <div className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">
-                     {formatCurrencyARS(kpis.totalInvertido)}
-                  </div>
-               </div>
+               <KpiCard
+                 title={t('investments.totalInvertido')}
+                 value={formatCurrencyARS(kpis.totalInvertido)}
+                 icon={TrendingUp}
+                 tone="emerald"
+                 showBar
+               />
 
-               {/* Total Devuelto */}
-               <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                     <TrendingDown className="w-12 h-12 text-red-500" />
-                  </div>
-                  <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('investments.totalDevuelto')}</h3>
-                  <div className="text-3xl font-bold text-red-600 dark:text-red-400 mt-2">
-                     {formatCurrencyARS(kpis.totalDevuelto)}
-                  </div>
-               </div>
+               <KpiCard
+                 title={t('investments.totalDevuelto')}
+                 value={formatCurrencyARS(kpis.totalDevuelto)}
+                 icon={TrendingDown}
+                 tone="red"
+                 showBar
+               />
 
-               {/* Saldo Neto */}
-               <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                     <Wallet className="w-12 h-12 text-blue-500" />
-                  </div>
-                  <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('investments.saldoNeto')}</h3>
-                  <div className={cn(
-                     "text-3xl font-bold mt-2",
-                     kpis.saldoNeto > 0 ? "text-green-600 dark:text-green-400" :
-                     kpis.saldoNeto < 0 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"
-                  )}>
-                     {formatCurrencyARS(kpis.saldoNeto)}
-                  </div>
-               </div>
+               <KpiCard
+                 title={t('investments.saldoNeto')}
+                 value={formatCurrencyARS(kpis.saldoNeto)}
+                 icon={Wallet}
+                 tone={kpis.saldoNeto >= 0 ? 'blue' : 'orange'}
+                 valueClassName={cn(
+                   kpis.saldoNeto > 0 ? "text-emerald-600 dark:text-emerald-400" :
+                   kpis.saldoNeto < 0 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"
+                 )}
+               />
             </div>
 
             {/* Tabs */}
