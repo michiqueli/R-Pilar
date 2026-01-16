@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/Input';
-import { FilterButton } from '@/components/projects/FilterButton';
-import { cn } from '@/lib/utils';
+import FilterButton from '@/components/common/FilterButton';
 
 const STATUS_OPTIONS = [
   { value: 'PENDIENTE', label: 'Pendiente' },
@@ -68,8 +67,9 @@ function TaskFilterPopover({ filters, onFiltersChange, projects = [] }) {
     <div className="relative" ref={popoverRef}>
       <FilterButton 
         onClick={() => setIsOpen(!isOpen)} 
-        isOpen={isOpen}
+        isActive={isOpen}
         activeCount={activeFiltersCount}
+        label="Filtros"
       />
 
       <AnimatePresence>

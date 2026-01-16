@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { projectService } from '@/services/projectService';
-import { Loader2 } from 'lucide-react';
+import { Activity, Loader2 } from 'lucide-react';
+import KpiCard from '@/components/ui/KpiCard';
 
 const GlobalProgressKPI = ({ projectId }) => {
   const { t } = useTheme();
@@ -62,11 +63,12 @@ const GlobalProgressKPI = ({ projectId }) => {
   const offset = circumference - (progress / 100) * circumference;
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col items-center justify-center h-full min-h-[300px]">
+    <KpiCard
+      title={t('projects.avanceGlobal')}
+      icon={Activity}
+      tone="blue"
+    >
       <div className="text-center mb-6">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white">
-          {t('projects.avanceGlobal')}
-        </h3>
         <p className="text-xs text-slate-500 mt-1">
           {t('projects.promediosPonderado')}
         </p>
@@ -121,14 +123,14 @@ const GlobalProgressKPI = ({ projectId }) => {
       </div>
       
       {!loading && (
-        <div className="mt-6 flex items-center gap-2 text-sm text-slate-500">
+        <div className="mt-6 flex items-center gap-2 text-sm text-slate-500 justify-center">
            <div className="w-3 h-3 rounded-full bg-blue-600"></div>
            <span>Completado</span>
            <div className="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-800 ml-4"></div>
            <span>Restante</span>
         </div>
       )}
-    </div>
+    </KpiCard>
   );
 };
 
