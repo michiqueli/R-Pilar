@@ -196,6 +196,8 @@
     "contact": "Contact",
     "email": "Email",
     "phone": "Phone",
+    "filters": "Filters",
+    "status": "Status",
     "address": "Address",
     "projects": "Projects",
     "actions": "Actions",
