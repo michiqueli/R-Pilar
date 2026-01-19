@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/Button';
 import KpiCard from '@/components/ui/KpiCard'; // Importamos tu nuevo componente
+import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 const TasksTable = ({ 
   tasks: initialTasks = [], 
@@ -34,6 +35,8 @@ const TasksTable = ({
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
   const [filter, setFilter] = useState('TODAS');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Función para cargar tareas desde DB optimizada con useCallback
   const loadTareas = useCallback(async () => {
@@ -152,6 +155,8 @@ const TasksTable = ({
     if (filter === 'TODAS') return true;
     return task.estado === filter;
   });
+  const totalItems = filteredTasks.length;
+  const paginatedTasks = filteredTasks.slice((page - 1) * pageSize, page * pageSize);
 
   const counts = {
     total: localTasks.length,
@@ -159,6 +164,10 @@ const TasksTable = ({
     en_curso: localTasks.filter(t => t.estado === 'EN_CURSO').length,
     finalizadas: localTasks.filter(t => t.estado === 'FINALIZADA').length,
   };
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, localTasks]);
 
   const getStatusColor = (estado) => {
     switch (estado) {
@@ -247,7 +256,7 @@ const TasksTable = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredTasks.map((task) => {
+                {paginatedTasks.map((task) => {
                   const isCompleted = task.estado === 'FINALIZADA';
                   const isUpdating = updatingId === task.id;
 
@@ -344,6 +353,23 @@ const TasksTable = ({
           </div>
         )}
       </div>
+
+      {!loading && totalItems > 0 && (
+        <TablePaginationBar
+          page={page}
+          pageSize={pageSize}
+          totalItems={totalItems}
+          onPageChange={setPage}
+          onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
+          labels={{
+            showing: 'Mostrando',
+            of: 'de',
+            rowsPerPage: 'Filas por pág:',
+            previous: 'Anterior',
+            next: 'Siguiente'
+          }}
+        />
+      )}
     </div>
   );
 };

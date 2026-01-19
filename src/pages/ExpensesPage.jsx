@@ -11,6 +11,7 @@ import ExpenseModal from '@/components/expenses/ExpenseModal';
 import ExpenseFilterPopover from '@/components/expenses/ExpenseFilterPopover';
 import { useTheme } from '@/contexts/ThemeProvider';
 import usePageTitle from '@/hooks/usePageTitle';
+import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 function ExpensesPage() {
   usePageTitle('Gastos');
@@ -22,6 +23,8 @@ function ExpensesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState({
     project_id: [],
     expense_type_id: [],
@@ -65,6 +68,10 @@ function ExpensesPage() {
   useEffect(() => {
     fetchExpenses();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filters]);
 
   const handleDelete = async (e, id) => {
     e.stopPropagation();
@@ -117,6 +124,8 @@ function ExpensesPage() {
 
     return matchesSearch && matchesProject && matchesType && matchesStatus && matchesCurrency && matchesProvider && matchesMonth;
   });
+  const totalItems = filteredExpenses.length;
+  const paginatedExpenses = filteredExpenses.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <>
@@ -167,7 +176,7 @@ function ExpensesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredExpenses.map((expense, index) => (
+                  {paginatedExpenses.map((expense, index) => (
                     <motion.tr
                       key={expense.id}
                       initial={{ opacity: 0, y: 10 }}
@@ -232,6 +241,24 @@ function ExpensesPage() {
                 </tbody>
               </table>
             </div>
+
+            {!loading && totalItems > 0 && (
+              <TablePaginationBar
+                className="mt-4"
+                page={page}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
+                labels={{
+                  showing: t('common.showing') || 'Mostrando',
+                  of: t('common.of') || 'de',
+                  rowsPerPage: t('common.rowsPerPage') || 'Filas por pág:',
+                  previous: t('common.previous') || 'Anterior',
+                  next: t('common.next') || 'Siguiente'
+                }}
+              />
+            )}
           </div>
         </motion.div>
       </div>

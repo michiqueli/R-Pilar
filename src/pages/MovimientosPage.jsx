@@ -21,6 +21,7 @@ import usePageTitle from '@/hooks/usePageTitle';
 // Unified Components
 import SearchBar from '@/components/common/SearchBar';
 import ViewToggle from '@/components/common/ViewToggle';
+import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 const STORAGE_KEY = 'movimientos_global_settings';
 
@@ -77,6 +78,10 @@ function MovimientosPage() {
   useEffect(() => {
     loadMovements();
   }, [settings.filters]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, settings.filters]);
 
   const loadMovements = async () => {
     setLoading(true);
@@ -155,7 +160,6 @@ function MovimientosPage() {
   
   // Pagination logic locally
   const totalItems = processedData.length;
-  const totalPages = Math.ceil(totalItems / pageSize);
   const paginatedData = processedData.slice((page - 1) * pageSize, page * pageSize);
 
   return (
@@ -295,31 +299,20 @@ function MovimientosPage() {
           </div>
 
           {!loading && totalItems > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-[#111827] rounded-xl border border-gray-200 dark:border-[#374151] p-3 shadow-sm">
-              <div className="text-sm text-gray-500 dark:text-gray-400 font-medium px-2">
-                 {t('common.showing')} {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, totalItems)} {t('common.of')} {totalItems}
-              </div>
-              <div className="flex items-center gap-2">
-                 <Button
-                   variant="outline"
-                   size="sm"
-                   disabled={page === 1}
-                   onClick={() => setPage(p => Math.max(1, p - 1))}
-                   className="rounded-full border border-gray-200 dark:border-gray-600 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 px-5 transition-colors"
-                 >
-                   {t('common.previous')}
-                 </Button>
-                 <Button
-                   variant="outline"
-                   size="sm"
-                   disabled={page === totalPages}
-                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                   className="rounded-full border border-gray-200 dark:border-gray-600 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 px-5 transition-colors"
-                 >
-                   {t('common.next')}
-                 </Button>
-              </div>
-            </div>
+            <TablePaginationBar
+              page={page}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={(nextPage) => setPage(nextPage)}
+              onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
+              labels={{
+                showing: t('common.showing') || 'Mostrando',
+                of: t('common.of') || 'de',
+                rowsPerPage: t('common.rowsPerPage') || 'Filas por pág:',
+                previous: t('common.previous') || 'Anterior',
+                next: t('common.next') || 'Siguiente'
+              }}
+            />
           )}
 
         </motion.div>

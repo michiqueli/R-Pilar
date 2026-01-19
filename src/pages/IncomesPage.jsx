@@ -10,6 +10,7 @@ import IncomeModal from '@/components/incomes/IncomeModal';
 import IncomeFilterPopover from '@/components/incomes/IncomeFilterPopover';
 import usePageTitle from '@/hooks/usePageTitle';
 import { incomeService } from '@/services/incomeService';
+import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 function IncomesPage() {
   usePageTitle('Ingresos');
@@ -20,6 +21,8 @@ function IncomesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedIncome, setSelectedIncome] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState({
     project_id: [],
     currency: [],
@@ -45,6 +48,10 @@ function IncomesPage() {
   useEffect(() => {
     fetchIncomes();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filters]);
 
   const handleDelete = async (e, id) => {
     e.stopPropagation();
@@ -87,6 +94,8 @@ function IncomesPage() {
 
     return matchesSearch && matchesProject && matchesCurrency && matchesMonth;
   });
+  const totalItems = filteredIncomes.length;
+  const paginatedIncomes = filteredIncomes.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <>
@@ -136,7 +145,7 @@ function IncomesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredIncomes.map((income, index) => (
+                  {paginatedIncomes.map((income, index) => (
                     <motion.tr
                       key={income.id}
                       initial={{ opacity: 0, y: 10 }}
@@ -196,6 +205,24 @@ function IncomesPage() {
                 </tbody>
               </table>
             </div>
+
+            {!loading && totalItems > 0 && (
+              <TablePaginationBar
+                className="mt-4"
+                page={page}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
+                labels={{
+                  showing: 'Showing',
+                  of: 'of',
+                  rowsPerPage: 'Rows per page:',
+                  previous: 'Previous',
+                  next: 'Next'
+                }}
+              />
+            )}
           </div>
         </motion.div>
       </div>

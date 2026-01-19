@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import usePageTitle from '@/hooks/usePageTitle';
+import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 const ComprasPage = () => {
   usePageTitle('Compras');
@@ -18,10 +19,16 @@ const ComprasPage = () => {
   const [compras, setCompras] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     fetchCompras();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
 
   const fetchCompras = async () => {
     try {
@@ -72,6 +79,8 @@ const ComprasPage = () => {
     c.proveedor?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const totalItems = filteredCompras.length;
+  const paginatedCompras = filteredCompras.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-[#111827] p-6 md:p-8 font-sans transition-colors duration-200">
@@ -142,7 +151,7 @@ const ComprasPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {filteredCompras.map((compra) => (
+                    {paginatedCompras.map((compra) => (
                       <tr key={compra.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">
                           #{compra.numero}
@@ -185,6 +194,24 @@ const ComprasPage = () => {
                   </tbody>
                 </table>
               </div>
+
+              {!loading && totalItems > 0 && (
+                <TablePaginationBar
+                  className="mt-4"
+                  page={page}
+                  pageSize={pageSize}
+                  totalItems={totalItems}
+                  onPageChange={setPage}
+                  onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
+                  labels={{
+                    showing: t('common.showing') || 'Mostrando',
+                    of: t('common.of') || 'de',
+                    rowsPerPage: t('common.rowsPerPage') || 'Filas por pág:',
+                    previous: t('common.previous') || 'Anterior',
+                    next: t('common.next') || 'Siguiente'
+                  }}
+                />
+              )}
             </div>
           )}
         </AnimatePresence>

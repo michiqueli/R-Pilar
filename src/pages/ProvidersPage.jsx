@@ -17,6 +17,7 @@ import usePageTitle from '@/hooks/usePageTitle';
 // Unified Components
 import SearchBar from '@/components/common/SearchBar';
 import ViewToggle from '@/components/common/ViewToggle';
+import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 function ProvidersPage() {
   usePageTitle('Proveedores');
@@ -36,6 +37,8 @@ function ProvidersPage() {
     type_id: [],
     is_active: null
   });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchProviders = async () => {
     try {
@@ -68,6 +71,10 @@ function ProvidersPage() {
   useEffect(() => {
     fetchProviders();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filters]);
 
   const handleToggleActive = async (provider) => {
     try {
@@ -124,6 +131,8 @@ function ProvidersPage() {
 
     return matchesSearch && matchesType && matchesStatus;
   });
+  const totalItems = filteredProviders.length;
+  const paginatedProviders = filteredProviders.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <>
@@ -209,7 +218,7 @@ function ProvidersPage() {
                   >
                      {viewMode === 'table' ? (
                         <ProvidersTable 
-                           providers={filteredProviders}
+                           providers={paginatedProviders}
                            onView={handleView}
                            onEdit={handleEdit}
                            onDelete={handleDelete}
@@ -217,7 +226,7 @@ function ProvidersPage() {
                         />
                      ) : (
                         <ProvidersCards 
-                           providers={filteredProviders}
+                           providers={paginatedProviders}
                            onView={handleView}
                            onEdit={handleEdit}
                            onDelete={handleDelete}
@@ -228,6 +237,23 @@ function ProvidersPage() {
                )}
              </AnimatePresence>
           </div>
+
+          {!loading && totalItems > 0 && (
+            <TablePaginationBar
+              page={page}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={setPage}
+              onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
+              labels={{
+                showing: t('common.showing') || 'Mostrando',
+                of: t('common.of') || 'de',
+                rowsPerPage: t('common.rowsPerPage') || 'Filas por pág:',
+                previous: t('common.previous') || 'Anterior',
+                next: t('common.next') || 'Siguiente'
+              }}
+            />
+          )}
 
         </motion.div>
       </div>
