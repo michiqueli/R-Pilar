@@ -50,23 +50,23 @@ const ProjectSummaryTab = ({ projectId, projectData: propProjectData }) => {
         </div>
       </div>
 
-      {/* 3. Breakdown por Partidas (Detailed Progress) */}
+      {/* 3. Breakdown por Partidas (Detailed Progress) 
       <ProjectPartidaBreakdownBlock projectId={activeProjectId} />
 
-      {/* 4. Plan de Trabajo (Timeline) */}
+      {/* 4. Plan de Trabajo (Timeline) 
       <ProjectWorkPlanBlock projectId={activeProjectId} />
 
-      {/* 5. Objetivos del Proyecto */}
+      {/* 5. Objetivos del Proyecto 
       <ProjectObjectivesBlock projectId={activeProjectId} />
 
-      {/* 6. Balance Mensual (Financial) */}
+      {/* 6. Balance Mensual (Financial) 
       <BalanceMensualBlock projectId={activeProjectId} />
 
-      {/* 7. Upcoming Movements (Treasury) */}
+      {/* 7. Upcoming Movements (Treasury) 
       <UpcomingMovementsBlock projectId={activeProjectId} limit={5} />
 
-       {/* 8. Investments Overview */}
-      <ProjectInvestmentsBlock projectId={activeProjectId} />
+       {/* 8. Investments Overview 
+      <ProjectInvestmentsBlock projectId={activeProjectId} />*/}
 
     </div>
   );

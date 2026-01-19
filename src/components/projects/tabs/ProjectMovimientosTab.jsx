@@ -1,6 +1,18 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Activity, Loader2, RefreshCw, MoreVertical, Eye, Edit, Copy, Trash2 } from 'lucide-react';
+import { 
+  Plus, 
+  Activity, 
+  Loader2, 
+  RefreshCw, 
+  MoreVertical, 
+  Eye, 
+  Edit, 
+  Copy, 
+  Trash2,
+  TrendingUp,
+  TrendingDown,
+  DollarSign
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrencyARS, formatCurrencyUSD } from '@/lib/formatUtils';
@@ -17,7 +29,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 // Modals & Components
-import NewMovementModal from '@/components/movimientos/NewMovementModal';
+import KpiCard from '@/components/ui/KpiCard';
+import MovimientoModal from '@/components/movimientos/MovimientoModal';
 import TableHeader from '@/components/TableHeader';
 import MovementFiltersPopover from '@/components/MovementFiltersPopover';
 import ViewMovementModal from '@/components/modals/ViewMovementModal';
@@ -174,24 +187,34 @@ const ProjectMovimientosTab = ({ projectId }) => {
     }
   };
 
+  const isBalancePositive = monthlyBalance.balance >= 0;
+
   return (
     <div className="space-y-6">
-      {/* Monthly Balance Cards - Unchanged */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-           <p className="text-sm font-medium text-slate-500 mb-1">Ingresos (Mes Actual)</p>
-           <p className="text-2xl font-bold text-emerald-600">{formatCurrencyARS(monthlyBalance.ingresos)}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-           <p className="text-sm font-medium text-slate-500 mb-1">Gastos (Mes Actual)</p>
-           <p className="text-2xl font-bold text-red-600">{formatCurrencyARS(monthlyBalance.gastos)}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-           <p className="text-sm font-medium text-slate-500 mb-1">Balance (Mes Actual)</p>
-           <p className={`text-2xl font-bold ${monthlyBalance.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-             {monthlyBalance.balance >= 0 ? '+' : ''}{formatCurrencyARS(monthlyBalance.balance)}
-           </p>
-        </div>
+      {/* Monthly Balance Cards - IMPLEMENTACIÓN KPICARD */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <KpiCard
+          title="Ingresos (Mes Actual)"
+          value={formatCurrencyARS(monthlyBalance.ingresos)}
+          icon={TrendingUp}
+          tone="emerald"
+          showBar
+        />
+        <KpiCard
+          title="Gastos (Mes Actual)"
+          value={formatCurrencyARS(monthlyBalance.gastos)}
+          icon={TrendingDown}
+          tone="red"
+          showBar
+        />
+        <KpiCard
+          title="Balance (Mes Actual)"
+          value={(isBalancePositive ? '+ ' : '') + formatCurrencyARS(monthlyBalance.balance)}
+          icon={DollarSign}
+          tone={isBalancePositive ? "blue" : "orange"}
+          showBar
+          description={isBalancePositive ? "Flujo de caja mensual positivo" : "Flujo de caja mensual negativo"}
+        />
       </div>
 
       <div className="flex items-center gap-2 mb-2">
@@ -319,8 +342,8 @@ const ProjectMovimientosTab = ({ projectId }) => {
                          <span className={cn(
                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
                            mov.estado === 'CONFIRMADO' 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                              : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                             : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
                          )}>
                            {mov.estado || 'PENDIENTE'}
                          </span>
@@ -359,7 +382,7 @@ const ProjectMovimientosTab = ({ projectId }) => {
       </div>
 
       {/* Modals */}
-      <NewMovementModal 
+      <MovimientoModal 
         isOpen={showNewModal}
         onClose={() => setShowNewModal(false)}
         onSuccess={loadData}

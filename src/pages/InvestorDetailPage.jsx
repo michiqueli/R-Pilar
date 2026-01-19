@@ -152,37 +152,6 @@ const InvestorDetailPage = () => {
                   </Button>
                </div>
             </div>
-
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               <KpiCard
-                 title={t('investments.totalInvertido')}
-                 value={formatCurrencyARS(kpis.totalInvertido)}
-                 icon={TrendingUp}
-                 tone="emerald"
-                 showBar
-               />
-
-               <KpiCard
-                 title={t('investments.totalDevuelto')}
-                 value={formatCurrencyARS(kpis.totalDevuelto)}
-                 icon={TrendingDown}
-                 tone="red"
-                 showBar
-               />
-
-               <KpiCard
-                 title={t('investments.saldoNeto')}
-                 value={formatCurrencyARS(kpis.saldoNeto)}
-                 icon={Wallet}
-                 tone={kpis.saldoNeto >= 0 ? 'blue' : 'orange'}
-                 valueClassName={cn(
-                   kpis.saldoNeto > 0 ? "text-emerald-600 dark:text-emerald-400" :
-                   kpis.saldoNeto < 0 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"
-                 )}
-               />
-            </div>
-
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                <TabsList className="bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-800 rounded-xl mb-6">

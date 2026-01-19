@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Edit2, 
   Trash2, 
@@ -8,13 +7,18 @@ import {
   Loader2, 
   Calendar, 
   User,
-  Briefcase
+  Briefcase,
+  ListTodo,
+  Clock,
+  CheckCircle,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/Button';
+import KpiCard from '@/components/ui/KpiCard'; // Importamos tu nuevo componente
 
 const TasksTable = ({ 
   tasks: initialTasks = [], 
@@ -29,24 +33,13 @@ const TasksTable = ({
   const [localTasks, setLocalTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
-  const [filter, setFilter] = useState('TODAS'); // TODAS, PENDIENTE, EN_CURSO, FINALIZADA
+  const [filter, setFilter] = useState('TODAS');
 
-  // Sync initial tasks
-  useEffect(() => {
-    if (initialTasks.length > 0) {
-      setLocalTasks(initialTasks);
-    } else if (proyectoId) {
-      // If no initial tasks but project ID exists, fetch them
-      loadTareas();
-    } else {
-      // Fallback for independent use
-      loadTareas(); 
-    }
-  }, [initialTasks, proyectoId]);
+  // Función para cargar tareas desde DB optimizada con useCallback
+  const loadTareas = useCallback(async () => {
+    // Si ya estamos cargando, no repetir
+    if (loading) return;
 
-  // Function to load tasks from DB
-  const loadTareas = async () => {
-    // If we have initialTasks passed from parent, we might skip this unless it's a refresh call
     console.log(`[TasksTable] Cargando tareas... Project Filter: ${proyectoId || 'None'}`);
     setLoading(true);
     
@@ -64,10 +57,8 @@ const TasksTable = ({
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
       
-      console.log(`[TasksTable] ${data?.length} tareas encontradas.`);
       setLocalTasks(data || []);
     } catch (error) {
       console.error("[TasksTable] Error:", error);
@@ -79,17 +70,26 @@ const TasksTable = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [proyectoId, toast]); // Solo se redefine si cambia proyectoId
+
+  // Sincronización corregida: Solo sincroniza si initialTasks tiene contenido, 
+  // de lo contrario carga de la DB una sola vez.
+  useEffect(() => {
+    if (initialTasks && initialTasks.length > 0) {
+      setLocalTasks(initialTasks);
+    } else {
+      loadTareas();
+    }
+    // Eliminamos initialTasks de las dependencias para evitar el bucle infinito 
+    // provocado por referencias de arrays nuevas en cada render del padre.
+  }, [proyectoId, loadTareas]); 
 
   // Handle status change
   const handleChangeEstado = async (tareaId, nuevoEstado) => {
-    console.log(`🔄 [handleChangeEstado] ID: ${tareaId} -> ${nuevoEstado}`);
     setUpdatingId(tareaId);
-
     try {
       const now = new Date().toISOString();
 
-      // 1. Update in Supabase
       const { data, error } = await supabase
         .from('tareas')
         .update({ 
@@ -102,83 +102,57 @@ const TasksTable = ({
 
       if (error) throw error;
 
-      console.log("✅ [handleChangeEstado] Actualizado en BD:", data);
-
-      // 2. Update Local State
       setLocalTasks(prevTasks => 
         prevTasks.map(task => 
           task.id === tareaId ? { ...task, estado: nuevoEstado, fecha_actualizacion: now } : task
         )
       );
 
-      // 3. Show Success
       toast({
         title: "Estado actualizado",
         description: `Tarea marcada como ${nuevoEstado.replace('_', ' ').toLowerCase()}`,
-        className: "bg-green-50 border-green-200 text-green-800"
       });
       
-      // 4. Reload if prop provided
       if (onReload) onReload();
-
     } catch (error) {
       console.error("[handleChangeEstado] Exception:", error);
       toast({
         variant: "destructive",
         title: "Error al actualizar",
-        description: "No se pudo cambiar el estado de la tarea."
+        description: "No se pudo cambiar el estado."
       });
     } finally {
       setUpdatingId(null);
     }
   };
 
-  // Toggle Finalizada/En Curso
   const handleToggleFinalizada = async (tarea) => {
     if (updatingId) return;
-    
-    // Logic: If FINALIZADA -> EN_CURSO. If anything else -> FINALIZADA
     const nuevoEstado = tarea.estado === 'FINALIZADA' ? 'EN_CURSO' : 'FINALIZADA';
     await handleChangeEstado(tarea.id, nuevoEstado);
   };
 
-  // Delete Task
   const handleDelete = async (tareaId) => {
     if (!window.confirm("¿Estás seguro de que quieres eliminar esta tarea?")) return;
-    
     setUpdatingId(tareaId);
     try {
-      const { error } = await supabase
-        .from('tareas')
-        .delete()
-        .eq('id', tareaId);
-
+      const { error } = await supabase.from('tareas').delete().eq('id', tareaId);
       if (error) throw error;
-
       setLocalTasks(prev => prev.filter(t => t.id !== tareaId));
       toast({ title: "Tarea eliminada correctamente" });
-      
       if (onReload) onReload();
-      
     } catch (error) {
-      console.error("Error eliminando tarea:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudo eliminar la tarea."
-      });
+      toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar." });
     } finally {
       setUpdatingId(null);
     }
   };
 
-  // Filter Logic
   const filteredTasks = localTasks.filter(task => {
     if (filter === 'TODAS') return true;
     return task.estado === filter;
   });
 
-  // Helper for counts
   const counts = {
     total: localTasks.length,
     pendientes: localTasks.filter(t => t.estado === 'PENDIENTE').length,
@@ -197,7 +171,35 @@ const TasksTable = ({
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
+      {/* KPI Cards Summary - USANDO KPICARD ESTANDARIZADO */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiCard 
+          title="Total Tareas" 
+          value={counts.total} 
+          icon={ListTodo} 
+          tone="slate" 
+        />
+        <KpiCard 
+          title="Pendientes" 
+          value={counts.pendientes} 
+          icon={Clock} 
+          tone="amber" 
+        />
+        <KpiCard 
+          title="En Curso" 
+          value={counts.en_curso} 
+          icon={RefreshCw} 
+          tone="blue" 
+        />
+        <KpiCard 
+          title="Finalizadas" 
+          value={counts.finalizadas} 
+          icon={CheckCircle} 
+          tone="emerald" 
+        />
+      </div>
+
+      {/* Filters Buttons */}
       <div className="flex flex-wrap gap-2 pb-2">
         {['TODAS', 'PENDIENTE', 'EN_CURSO', 'FINALIZADA'].map((f) => (
           <button
@@ -238,9 +240,9 @@ const TasksTable = ({
                   <th className="py-3 px-4 w-12 text-center">✓</th>
                   <th className="py-3 px-4 font-semibold text-slate-700">Tarea</th>
                   {showProjectColumn && <th className="py-3 px-4 font-semibold text-slate-700">Proyecto</th>}
-                  <th className="py-3 px-4 font-semibold text-slate-700">Asignado a</th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">Asignado</th>
                   <th className="py-3 px-4 font-semibold text-slate-700">Estado</th>
-                  <th className="py-3 px-4 font-semibold text-slate-700">Fecha</th>
+                  <th className="py-3 px-4 font-semibold text-slate-700">Vence</th>
                   <th className="py-3 px-4 font-semibold text-slate-700 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -257,7 +259,6 @@ const TasksTable = ({
                         isUpdating ? "opacity-50 pointer-events-none" : ""
                       )}
                     >
-                      {/* Checkbox */}
                       <td className="py-3 px-4 text-center">
                         <button
                           onClick={() => handleToggleFinalizada(task)}
@@ -271,13 +272,8 @@ const TasksTable = ({
                           )}
                         </button>
                       </td>
-
-                      {/* Name */}
                       <td className="py-3 px-4">
-                        <div className={cn(
-                          "font-medium text-slate-900",
-                          isCompleted && "line-through text-slate-400"
-                        )}>
+                        <div className={cn("font-medium text-slate-900", isCompleted && "line-through text-slate-400")}>
                           {task.nombre}
                         </div>
                         {task.descripcion && (
@@ -286,15 +282,11 @@ const TasksTable = ({
                           </div>
                         )}
                       </td>
-
-                      {/* Project (Optional) */}
                       {showProjectColumn && (
                         <td className="py-3 px-4 text-slate-600">
                            {task.projects?.name || '-'}
                         </td>
                       )}
-
-                      {/* Assignee */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
@@ -303,8 +295,6 @@ const TasksTable = ({
                            <span className="text-slate-600 truncate max-w-[100px]">{task.asignado_a || 'Sin asignar'}</span>
                         </div>
                       </td>
-
-                      {/* Status Dropdown */}
                       <td className="py-3 px-4">
                         <div className="relative">
                           <select
@@ -312,7 +302,7 @@ const TasksTable = ({
                             onChange={(e) => handleChangeEstado(task.id, e.target.value)}
                             disabled={isUpdating}
                             className={cn(
-                              "appearance-none pl-2 pr-8 py-1 rounded-md text-xs font-semibold border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20",
+                              "appearance-none pl-2 pr-8 py-1 rounded-md text-xs font-semibold border cursor-pointer focus:outline-none",
                               getStatusColor(task.estado)
                             )}
                           >
@@ -323,23 +313,16 @@ const TasksTable = ({
                           {isUpdating && <Loader2 className="w-3 h-3 animate-spin absolute right-2 top-1.5 text-slate-400" />}
                         </div>
                       </td>
-
-                      {/* Date */}
-                      <td className="py-3 px-4 text-slate-500 text-xs">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3 opacity-50" />
-                          {task.fecha_vencimiento ? formatDate(task.fecha_vencimiento) : '-'}
-                        </div>
+                      <td className="py-3 px-4 text-slate-500 text-xs font-mono">
+                        {task.fecha_vencimiento ? formatDate(task.fecha_vencimiento) : '-'}
                       </td>
-
-                      {/* Actions */}
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button 
                             variant="ghost" 
                             size="iconSm" 
                             onClick={() => onEdit && onEdit(task)}
-                            className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                            className="h-8 w-8 text-slate-400 hover:text-blue-600"
                           >
                             <Edit2 className="w-4 h-4" />
                           </Button>
@@ -347,7 +330,7 @@ const TasksTable = ({
                             variant="ghost" 
                             size="iconSm"
                             onClick={() => handleDelete(task.id)}
-                            className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                            className="h-8 w-8 text-slate-400 hover:text-red-600"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -361,26 +344,8 @@ const TasksTable = ({
           </div>
         )}
       </div>
-
-      {/* Summary Footer */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-         <SummaryItem icon="📋" label="Total" count={counts.total} />
-         <SummaryItem icon="⏳" label="Pendientes" count={counts.pendientes} />
-         <SummaryItem icon="🔄" label="En Curso" count={counts.en_curso} color="text-blue-600" />
-         <SummaryItem icon="✅" label="Finalizadas" count={counts.finalizadas} color="text-green-600" />
-      </div>
     </div>
   );
 };
-
-const SummaryItem = ({ icon, label, count, color = "text-slate-800" }) => (
-  <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center">
-    <div>
-      <p className="text-[10px] uppercase font-bold text-slate-400">{label}</p>
-      <p className={cn("text-lg font-bold", color)}>{count}</p>
-    </div>
-    <div className="text-xl opacity-80">{icon}</div>
-  </div>
-);
 
 export default TasksTable;

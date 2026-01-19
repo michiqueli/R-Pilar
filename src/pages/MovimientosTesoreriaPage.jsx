@@ -1,21 +1,24 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '@/components/layout/PageHeader';
 import CarouselMovimientos from '@/components/CarouselMovimientos';
-import KPIEstadoCuentas from '@/components/KPIEstadoCuentas';
-import GraficoLiquidezMejorado from '@/components/GraficoLiquidezMejorado';
 import MovimientosTesoreriaTable from '@/components/movimientos/MovimientosTesoreriaTable';
 import ViewMovementModal from '@/components/modals/ViewMovementModal';
 import DeleteMovementModal from '@/components/modals/DeleteMovementModal';
 import EditMovementModal from '@/components/modals/EditMovementModal';
 import DuplicateMovementModal from '@/components/modals/DuplicateMovementModal';
+import GraficoLiquidezMejorado from '@/components/GraficoLiquidezMejorado';
+
+// UI e Iconos
+import KpiCard from '@/components/ui/KpiCard';
+import { Clock, Wallet, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { formatCurrencyARS } from '@/lib/formatUtils';
+
+// Services
 import { movimientosTesoreriaService } from '@/services/movimientosTesoreriaService';
 import { movimientoService } from '@/services/movimientoService';
 import { liquidezProyectadaService } from '@/services/liquidezProyectadaService';
-import { useToast } from '@/components/ui/use-toast';
-import { Clock } from 'lucide-react';
-import { formatCurrencyARS } from '@/lib/formatUtils';
 
 const MovimientosTesoreriaPage = () => {
   const { toast } = useToast();
@@ -35,22 +38,13 @@ const MovimientosTesoreriaPage = () => {
   const [estadoCuentas, setEstadoCuentas] = useState([]);
   const [pendientesConfirmacion, setPendientesConfirmacion] = useState([]);
   const [todosMovimientos, setTodosMovimientos] = useState([]);
-  
-  // New Liquidity Data States
   const [datosLiquidez, setDatosLiquidez] = useState([]);
   const [cuentasLiquidez, setCuentasLiquidez] = useState([]);
   const [resumenRiesgo, setResumenRiesgo] = useState(null);
   
-  // Filters for Table
   const [tableFilters, setTableFilters] = useState({});
-  
-  // Modals State
   const [modalState, setModalState] = useState({
-    view: false,
-    delete: false,
-    edit: false,
-    duplicate: false,
-    selectedItem: null
+    view: false, delete: false, edit: false, duplicate: false, selectedItem: null
   });
 
   const handleModoChange = (newMode) => {
@@ -82,7 +76,6 @@ const MovimientosTesoreriaPage = () => {
     try {
       const { data, allAccounts } = await liquidezProyectadaService.getLiquidezPorFecha(horizonte, soloEnRiesgo);
       const resumen = await liquidezProyectadaService.getResumenRiesgo(horizonte, soloEnRiesgo);
-      
       setDatosLiquidez(data || []);
       
       if (soloEnRiesgo && resumen?.listaRiesgo) {
@@ -91,9 +84,7 @@ const MovimientosTesoreriaPage = () => {
       } else {
         setCuentasLiquidez(allAccounts || []);
       }
-
       setResumenRiesgo(resumen);
-
     } catch (error) {
       console.error("Error loading liquidity projection", error);
     }
@@ -103,9 +94,7 @@ const MovimientosTesoreriaPage = () => {
     setLoading(true);
     try {
       const res = await movimientosTesoreriaService.getMovimientosPorFiltros(tableFilters);
-      if (res.success) {
-        setTodosMovimientos(res.data);
-      }
+      if (res.success) setTodosMovimientos(res.data);
     } catch (error) {
       console.error("Error loading table data", error);
     } finally {
@@ -124,9 +113,7 @@ const MovimientosTesoreriaPage = () => {
 
   const handleModal = (type, item = null, isOpen = true) => {
     setModalState(prev => ({
-      ...prev,
-      [type]: isOpen,
-      selectedItem: isOpen ? item : null
+      ...prev, [type]: isOpen, selectedItem: isOpen ? item : null
     }));
   };
 
@@ -147,33 +134,10 @@ const MovimientosTesoreriaPage = () => {
      }
   };
 
-  const renderPendientesCard = () => (
-    <div 
-      className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 flex flex-col h-full shadow-sm cursor-pointer hover:shadow-md transition-all group"
-      onClick={() => {
-        setTableFilters({ estado: 'PENDIENTE' });
-        document.getElementById('movements-table-section')?.scrollIntoView({ behavior: 'smooth' });
-      }}
-    >
-       <div className="flex items-center justify-between mb-4">
-         <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Pendientes</h3>
-         <div className="p-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-full">
-            <Clock className="w-4 h-4 text-amber-500" />
-         </div>
-       </div>
-       <div className="flex-1 flex flex-col justify-center text-center">
-          <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-             {pendientesConfirmacion.length}
-          </p>
-          <p className="text-xs text-gray-500">Movimientos sin confirmar</p>
-          {pendientesConfirmacion.length > 0 && (
-             <p className="text-xs font-mono text-amber-600 font-medium mt-2 bg-amber-50 dark:bg-amber-900/10 py-1 px-2 rounded-full inline-block mx-auto">
-                {formatCurrencyARS(pendientesConfirmacion.reduce((acc, curr) => acc + Number(curr.monto_ars || 0), 0))}
-             </p>
-          )}
-       </div>
-    </div>
-  );
+  // Cálculo de totales para las tarjetas
+  const totalPendienteMonto = pendientesConfirmacion.reduce((acc, curr) => acc + Number(curr.monto_ars || 0), 0);
+  const totalSaldoCuentas = estadoCuentas.reduce((acc, curr) => acc + Number(curr.saldo_actual || 0), 0);
+  const cuentasEnRiesgo = estadoCuentas.filter(c => c.en_riesgo).length;
 
   return (
     <div className="flex flex-col h-full space-y-6 pb-10">
@@ -183,7 +147,8 @@ const MovimientosTesoreriaPage = () => {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-         <div className="h-48">
+          {/* Tarjeta 1: Proximos Pagos (Carousel) */}
+          <div className="h-48">
             <CarouselMovimientos 
               items={proximosPagos} 
               titulo="Próximos Pagos" 
@@ -191,9 +156,10 @@ const MovimientosTesoreriaPage = () => {
               onViewAll={() => setTableFilters({ tipo: 'GASTO' })}
               onItemClick={(item) => handleModal('view', item)}
             />
-         </div>
-         
-         <div className="h-48">
+          </div>
+          
+          {/* Tarjeta 2: Proximos Cobros (Carousel) */}
+          <div className="h-48">
             <CarouselMovimientos 
               items={proximosCobros} 
               titulo="Próximos Cobros" 
@@ -201,26 +167,45 @@ const MovimientosTesoreriaPage = () => {
               onViewAll={() => setTableFilters({ tipo: 'INGRESO' })}
               onItemClick={(item) => handleModal('view', item)}
             />
-         </div>
+          </div>
 
-         <div className="h-48">
-            <KPIEstadoCuentas 
-              estadoCuentas={estadoCuentas}
-              horizonte={horizonte}
-              onViewRisks={() => {
+          {/* Tarjeta 3: Estado de Cuentas (Refactorizado a KpiCard) */}
+          <div className="h-48">
+            <KpiCard
+              title="Estado de Cuentas"
+              value={formatCurrencyARS(totalSaldoCuentas)}
+              icon={Wallet}
+              tone={cuentasEnRiesgo > 0 ? "amber" : "blue"}
+              secondaryValue={`${estadoCuentas.length} cuentas activas`}
+              description={cuentasEnRiesgo > 0 ? `${cuentasEnRiesgo} cuentas con riesgo de saldo` : "Saldos proyectados estables"}
+              showBar
+              onClick={() => {
                 setSoloEnRiesgo(true);
                 document.getElementById('liquidity-chart-section')?.scrollIntoView({ behavior: 'smooth' });
               }}
             />
-         </div>
+          </div>
 
-         <div className="h-48">
-            {renderPendientesCard()}
-         </div>
+          {/* Tarjeta 4: Pendientes (Refactorizado a KpiCard) */}
+          <div className="h-48">
+            <KpiCard
+              title="Pendientes"
+              value={pendientesConfirmacion.length.toString()}
+              icon={Clock}
+              tone="amber"
+              secondaryValue={formatCurrencyARS(totalPendienteMonto)}
+              description="Movimientos esperando confirmación"
+              showBar
+              onClick={() => {
+                setTableFilters({ estado: 'PENDIENTE' });
+                document.getElementById('movements-table-section')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            />
+          </div>
       </div>
 
       <div id="liquidity-chart-section">
-         <GraficoLiquidezMejorado 
+          <GraficoLiquidezMejorado 
             datos={datosLiquidez}
             cuentas={cuentasLiquidez}
             horizonte={horizonte}
@@ -230,12 +215,12 @@ const MovimientosTesoreriaPage = () => {
             resumen={resumenRiesgo}
             modo={graficoModo}
             onModoChange={handleModoChange}
-         />
+          />
       </div>
 
       <div id="movements-table-section">
-         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Listado Global de Movimientos</h3>
-         <MovimientosTesoreriaTable 
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Listado Global de Movimientos</h3>
+          <MovimientosTesoreriaTable 
             movimientos={todosMovimientos}
             loading={loading}
             filters={tableFilters}
@@ -246,7 +231,7 @@ const MovimientosTesoreriaPage = () => {
             onDelete={(item) => handleModal('delete', item)}
             onDuplicate={(item) => handleModal('duplicate', item)}
             onNew={() => navigate('/movements/new')}
-         />
+          />
       </div>
 
       {/* Modals */}

@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { investorService } from '@/services/investorService';
 import InvestorModal from '@/components/investors/InvestorModal';
-import InvestmentMovementModal from '@/components/movimientos/InvestmentMovementModal';
+import MovimientoModal from '@/components/movimientos/MovimientoModal';
 import InvestorsTable from '@/components/investors/InvestorsTable';
 import InvestorsCards from '@/components/investors/InvestorsCards';
 import InvestorsEmptyState from '@/components/investors/InvestorsEmptyState';
@@ -236,7 +236,7 @@ const InvestorsPage = () => {
          investor={selectedInvestor}
       />
 
-      <InvestmentMovementModal
+      <MovimientoModal
          isOpen={!!movementModalType}
          onClose={() => setMovementModalType(null)}
          onSuccess={() => { setMovementModalType(null); fetchInvestors(); }}

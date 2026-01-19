@@ -232,7 +232,6 @@ const ClientDetailPage = () => {
                    <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-full inline-flex w-auto min-w-full md:min-w-0 h-auto">
                       <TabsTrigger value="contacts" className="rounded-full px-6 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm">Contactos</TabsTrigger>
                       <TabsTrigger value="projects" className="rounded-full px-6 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm">Proyectos</TabsTrigger>
-                      <TabsTrigger value="budgets" className="rounded-full px-6 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm" onClick={() => toast({ title: "Próximamente", description: "La pestaña Presupuestos no implementada aún" })}>Presupuestos</TabsTrigger>
                       <TabsTrigger value="documents" className="rounded-full px-6 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm">Documentos</TabsTrigger>
                       <TabsTrigger value="payments" className="rounded-full px-6 py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm">Cobros</TabsTrigger>
                    </TabsList>
@@ -246,14 +245,6 @@ const ClientDetailPage = () => {
                    <TabsContent value="projects">
                       <ClientProjectsTab clientId={id} />
                    </TabsContent>
-                   
-                   {/* Budgets Tab - Placeholder as per user's last instruction */}
-                   <TabsContent value="budgets">
-                      <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                        <p className="text-slate-500">Funcionalidad de Presupuestos no implementada todavía.</p>
-                      </div>
-                   </TabsContent>
-
                    <TabsContent value="documents">
                       <ClientDocumentsTab clientId={id} />
                    </TabsContent>

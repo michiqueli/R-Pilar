@@ -165,7 +165,7 @@ function ProjectsListPage() {
              <Button 
                 onClick={handleNewProject} 
                 variant="primary" 
-                className="rounded-full shadow-lg shadow-blue-500/20 px-6 h-11"
+                className="rounded-full shadow-lg shadow-blue-500/20 px-6 h-11 bg-[#3B82F6] hover:bg-blue-700 text-white"
              >
                 <Plus className="w-5 h-5 mr-2" />
                 {t('projects.new')}

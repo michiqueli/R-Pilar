@@ -1,7 +1,9 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '@/contexts/ThemeProvider';
-import { MoreVertical, Search, Filter, Columns, Plus, Eye, Edit, Trash2, Copy, FileText } from 'lucide-react';
+import { 
+  MoreVertical, Search, Filter, Columns, Plus, 
+  Eye, Edit, Trash2, Copy, CheckCircle2, Circle, Loader2 
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import {
@@ -17,6 +19,8 @@ import { formatCurrencyARS, formatDate } from '@/lib/formatUtils';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from '@/components/ui/use-toast';
+import { movimientosTesoreriaService } from '@/services/movimientosTesoreriaService';
 
 const MovimientosTesoreriaTable = ({
   movimientos,
@@ -28,11 +32,13 @@ const MovimientosTesoreriaTable = ({
   onEdit,
   onDelete,
   onDuplicate,
-  onNew
+  onNew,
+  onRefresh // Prop vital para actualizar KPIs al confirmar
 }) => {
-  const { t } = useTheme();
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [visibleColumns, setVisibleColumns] = React.useState({
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [updatingId, setUpdatingId] = useState(null);
+  const [visibleColumns, setVisibleColumns] = useState({
     fecha: true,
     descripcion: true,
     tipo: true,
@@ -46,6 +52,35 @@ const MovimientosTesoreriaTable = ({
     const term = e.target.value;
     setSearchTerm(term);
     onSearch(term);
+  };
+
+  // Lógica de Toggle Rápido de Confirmación
+  const handleQuickStatusToggle = async (mov) => {
+    if (updatingId) return;
+    setUpdatingId(mov.id);
+    
+    const nuevoEstado = mov.estado === 'CONFIRMADO' ? 'PENDIENTE' : 'CONFIRMADO';
+    
+    try {
+      // Usamos el servicio para actualizar solo el campo estado
+      await movimientosTesoreriaService.patchEstado(mov.id, nuevoEstado);
+      
+      toast({
+        title: nuevoEstado === 'CONFIRMADO' ? "Movimiento Confirmado" : "Movimiento Pendiente",
+        description: `Se ha actualizado el estado de "${mov.descripcion}"`,
+        className: nuevoEstado === 'CONFIRMADO' ? "bg-green-50 border-green-200" : ""
+      });
+
+      if (onRefresh) onRefresh(); // Dispara la recarga de los KPIs y la tabla
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo cambiar el estado del movimiento."
+      });
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   return (
@@ -63,7 +98,6 @@ const MovimientosTesoreriaTable = ({
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* Filters */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -101,24 +135,17 @@ const MovimientosTesoreriaTable = ({
                         <option value="CONFIRMADO">Confirmado</option>
                      </select>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="w-full text-xs"
-                    onClick={() => onFilterChange({})}
-                  >
+                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => onFilterChange({})}>
                     Limpiar Filtros
                   </Button>
                </div>
             </PopoverContent>
           </Popover>
 
-          {/* Columns */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
-                <Columns className="w-4 h-4" />
-                <span className="hidden sm:inline">Columnas</span>
+                <Columns className="w-4 h-4" /> Columnas
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -153,110 +180,145 @@ const MovimientosTesoreriaTable = ({
             <table className="w-full text-left text-sm">
                <thead className="bg-gray-50 dark:bg-slate-950 border-b border-gray-200 dark:border-gray-800 text-gray-500">
                   <tr>
-                     {visibleColumns.fecha && <th className="px-6 py-4 font-semibold whitespace-nowrap">Fecha</th>}
-                     {visibleColumns.descripcion && <th className="px-6 py-4 font-semibold whitespace-nowrap">Descripción</th>}
-                     {visibleColumns.tipo && <th className="px-6 py-4 font-semibold whitespace-nowrap">Tipo</th>}
-                     {visibleColumns.monto && <th className="px-6 py-4 font-semibold whitespace-nowrap text-right">Monto</th>}
-                     {visibleColumns.estado && <th className="px-6 py-4 font-semibold whitespace-nowrap text-center">Estado</th>}
-                     {visibleColumns.cuenta && <th className="px-6 py-4 font-semibold whitespace-nowrap">Cuenta</th>}
-                     {visibleColumns.acciones && <th className="px-6 py-4 font-semibold whitespace-nowrap text-right">Acciones</th>}
+                     {visibleColumns.fecha && <th className="px-6 py-4 font-semibold">Fecha</th>}
+                     {visibleColumns.descripcion && <th className="px-6 py-4 font-semibold">Descripción</th>}
+                     {visibleColumns.tipo && <th className="px-6 py-4 font-semibold">Tipo</th>}
+                     {visibleColumns.monto && <th className="px-6 py-4 font-semibold text-right">Monto</th>}
+                     {visibleColumns.estado && <th className="px-6 py-4 font-semibold text-center w-32">Estado</th>}
+                     {visibleColumns.cuenta && <th className="px-6 py-4 font-semibold">Cuenta</th>}
+                     {visibleColumns.acciones && <th className="px-6 py-4 font-semibold text-right">Acciones</th>}
                   </tr>
                </thead>
                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {loading ? (
                      <tr>
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">Cargando movimientos...</td>
+                        <td colSpan={7} className="px-6 py-12 text-center">
+                          <div className="flex flex-col items-center gap-2 text-gray-500">
+                            <Loader2 className="w-6 h-6 animate-spin" /> Cargando movimientos...
+                          </div>
+                        </td>
                      </tr>
                   ) : movimientos.length === 0 ? (
                      <tr>
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">No se encontraron movimientos</td>
+                        <td colSpan={7} className="px-6 py-12 text-center text-gray-500">No se encontraron movimientos</td>
                      </tr>
                   ) : (
-                     movimientos.map((mov) => (
-                        <tr key={mov.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group">
-                           {visibleColumns.fecha && (
-                              <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                                 {formatDate(mov.fecha)}
-                              </td>
-                           )}
-                           {visibleColumns.descripcion && (
-                              <td className="px-6 py-4">
-                                 <div className="font-medium text-gray-900 dark:text-white max-w-[200px] sm:max-w-[300px] truncate" title={mov.descripcion}>
-                                    {mov.descripcion}
-                                 </div>
-                                 <div className="text-xs text-gray-500 flex items-center gap-1">
-                                    {mov.providers?.name || mov.inversionistas?.nombre || 'Sin entidad'}
-                                 </div>
-                              </td>
-                           )}
-                           {visibleColumns.tipo && (
-                              <td className="px-6 py-4">
-                                 <Badge variant="outline" className={cn(
-                                    "font-normal",
-                                    (mov.tipo === 'GASTO' || mov.tipo === 'DEVOLUCION') ? "border-red-200 text-red-700 bg-red-50 dark:bg-red-900/10 dark:text-red-400" : "border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-emerald-900/10 dark:text-emerald-400"
-                                 )}>
-                                    {mov.tipo}
-                                 </Badge>
-                              </td>
-                           )}
-                           {visibleColumns.monto && (
-                              <td className="px-6 py-4 text-right font-mono font-medium text-gray-700 dark:text-gray-200">
-                                 {formatCurrencyARS(mov.monto_ars || mov.amount)}
-                              </td>
-                           )}
-                           {visibleColumns.estado && (
-                              <td className="px-6 py-4 text-center">
-                                 <span className={cn(
-                                    "inline-flex w-2.5 h-2.5 rounded-full",
-                                    mov.estado === 'CONFIRMADO' ? "bg-blue-500" : "bg-amber-400"
-                                 )} title={mov.estado}></span>
-                                 <span className="sr-only">{mov.estado}</span>
-                              </td>
-                           )}
-                           {visibleColumns.cuenta && (
-                              <td className="px-6 py-4 text-gray-600 dark:text-gray-400 text-sm">
-                                 {mov.cuentas?.titulo || '—'}
-                              </td>
-                           )}
-                           {visibleColumns.acciones && (
-                              <td className="px-6 py-4 text-right">
-                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                       <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600">
-                                          <MoreVertical className="w-4 h-4" />
-                                       </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                       <DropdownMenuItem onClick={() => onView(mov)}>
-                                          <Eye className="w-4 h-4 mr-2" /> Ver detalles
-                                       </DropdownMenuItem>
-                                       <DropdownMenuItem onClick={() => onEdit(mov)}>
-                                          <Edit className="w-4 h-4 mr-2" /> Editar
-                                       </DropdownMenuItem>
-                                       <DropdownMenuItem onClick={() => onDuplicate(mov)}>
-                                          <Copy className="w-4 h-4 mr-2" /> Duplicar
-                                       </DropdownMenuItem>
-                                       <DropdownMenuSeparator />
-                                       <DropdownMenuItem onClick={() => onDelete(mov)} className="text-red-600 focus:text-red-600">
-                                          <Trash2 className="w-4 h-4 mr-2" /> Eliminar
-                                       </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                 </DropdownMenu>
-                              </td>
-                           )}
-                        </tr>
-                     ))
+                     movimientos.map((mov) => {
+                        const isConfirmado = mov.estado === 'CONFIRMADO';
+                        const isUpdating = updatingId === mov.id;
+
+                        return (
+                          <tr key={mov.id} className={cn(
+                            "hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group",
+                            isUpdating && "opacity-50 pointer-events-none"
+                          )}>
+                             {visibleColumns.fecha && (
+                                <td className="px-6 py-4 text-gray-600 dark:text-gray-300 font-mono text-xs">
+                                   {formatDate(mov.fecha)}
+                                </td>
+                             )}
+                             {visibleColumns.descripcion && (
+                                <td className="px-6 py-4">
+                                   <div className="font-medium text-gray-900 dark:text-white truncate max-w-[250px]" title={mov.descripcion}>
+                                      {mov.descripcion}
+                                   </div>
+                                   <div className="text-xs text-gray-500 truncate max-w-[200px]">
+                                      {mov.providers?.name || mov.inversionistas?.nombre || 'Sin entidad'}
+                                   </div>
+                                </td>
+                             )}
+                             {visibleColumns.tipo && (
+                                <td className="px-6 py-4">
+                                   <Badge variant="outline" className={cn(
+                                      "font-normal text-[10px]",
+                                      (mov.tipo === 'GASTO' || mov.tipo === 'DEVOLUCION') 
+                                        ? "border-red-200 text-red-700 bg-red-50 dark:bg-red-900/10" 
+                                        : "border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-emerald-900/10"
+                                   )}>
+                                      {mov.tipo}
+                                   </Badge>
+                                </td>
+                             )}
+                             {visibleColumns.monto && (
+                                <td className="px-6 py-4 text-right font-mono font-medium text-gray-700 dark:text-gray-200">
+                                   {formatCurrencyARS(mov.monto_ars || mov.amount)}
+                                </td>
+                             )}
+                             
+                             {/* CELDA DE ESTADO INTERACTIVA */}
+                             {visibleColumns.estado && (
+                                <td className="px-6 py-4">
+                                   <div className="flex items-center justify-center gap-3">
+                                      <button
+                                        onClick={() => handleQuickStatusToggle(mov)}
+                                        disabled={isUpdating}
+                                        className="focus:outline-none hover:scale-110 transition-transform relative"
+                                        title={isConfirmado ? "Marcar como pendiente" : "Confirmar movimiento"}
+                                      >
+                                        {isUpdating ? (
+                                          <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                                        ) : isConfirmado ? (
+                                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                        ) : (
+                                          <Circle className="w-5 h-5 text-slate-300 hover:text-blue-500" />
+                                        )}
+                                      </button>
+                                      <span className={cn(
+                                        "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                                        isConfirmado 
+                                          ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400" 
+                                          : "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400"
+                                      )}>
+                                        {mov.estado}
+                                      </span>
+                                   </div>
+                                </td>
+                             )}
+
+                             {visibleColumns.cuenta && (
+                                <td className="px-6 py-4 text-gray-600 dark:text-gray-400 text-xs">
+                                   {mov.cuentas?.titulo || '—'}
+                                </td>
+                             )}
+                             {visibleColumns.acciones && (
+                                <td className="px-6 py-4 text-right">
+                                   <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                         <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <MoreVertical className="w-4 h-4" />
+                                         </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                         <DropdownMenuItem onClick={() => onView(mov)}>
+                                            <Eye className="w-4 h-4 mr-2" /> Ver detalles
+                                         </DropdownMenuItem>
+                                         <DropdownMenuItem onClick={() => onEdit(mov)}>
+                                            <Edit className="w-4 h-4 mr-2" /> Editar
+                                         </DropdownMenuItem>
+                                         
+                                         {/* Toggle rápido también en el menú por accesibilidad */}
+                                         <DropdownMenuItem onClick={() => handleQuickStatusToggle(mov)}>
+                                            <CheckCircle2 className="w-4 h-4 mr-2" /> 
+                                            {isConfirmado ? 'Desmarcar' : 'Confirmar'}
+                                         </DropdownMenuItem>
+
+                                         <DropdownMenuItem onClick={() => onDuplicate(mov)}>
+                                            <Copy className="w-4 h-4 mr-2" /> Duplicar
+                                         </DropdownMenuItem>
+                                         <DropdownMenuSeparator />
+                                         <DropdownMenuItem onClick={() => onDelete(mov)} className="text-red-600 focus:text-red-600">
+                                            <Trash2 className="w-4 h-4 mr-2" /> Eliminar
+                                         </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                   </DropdownMenu>
+                                </td>
+                             )}
+                          </tr>
+                        );
+                     })
                   )}
                </tbody>
             </table>
-         </div>
-         
-         {/* Mobile Card View (Visible only on small screens) */}
-         <div className="sm:hidden divide-y divide-gray-100 dark:divide-slate-800">
-             {/* This part would be implemented with media queries to show/hide table/cards. 
-                 For simplicity, I relied on the responsive table scrolling above, but here is a placeholder logic 
-                 if strict card view is required. Tailwind 'hidden sm:block' on table and 'block sm:hidden' here.
-             */}
          </div>
       </div>
     </div>

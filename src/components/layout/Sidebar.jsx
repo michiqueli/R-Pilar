@@ -38,8 +38,9 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
   };
 
   const SidebarItem = ({ item, collapsed }) => {
-    const active = isActiveRoute(item);
-    const label = t(`nav.${item.name.toLowerCase()}`) || item.name;
+  const active = isActiveRoute(item);
+  const translationKey = item.translationKey || item.name.toLowerCase();
+  const label = t(`nav.${item.name}`);
     
     const content = (
       <NavLink
@@ -127,7 +128,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
           <div key={idx} className="space-y-1">
             {!isCollapsed && (
               <div className="px-3 mb-2 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">
-                {t(`sidebar.${section.title.toLowerCase()}`) || section.title}
+                {t(`sidebar.${section.title}`)}
               </div>
             )}
             
