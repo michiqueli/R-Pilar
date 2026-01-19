@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/switch';
 import AccountModal from '@/components/accounts/AccountModal';
 import usePageTitle from '@/hooks/usePageTitle';
+import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 function AccountsPage() {
   usePageTitle('Cuentas');
@@ -17,6 +18,8 @@ function AccountsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchAccounts = async () => {
     try {
@@ -43,6 +46,10 @@ function AccountsPage() {
   useEffect(() => {
     fetchAccounts();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
 
   const handleToggleActive = async (account) => {
     try {
@@ -93,6 +100,8 @@ function AccountsPage() {
   const filteredAccounts = accounts.filter(account =>
     account.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const totalItems = filteredAccounts.length;
+  const paginatedAccounts = filteredAccounts.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <>
@@ -137,7 +146,7 @@ function AccountsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAccounts.map((account) => (
+                  {paginatedAccounts.map((account) => (
                     <tr key={account.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="py-3 px-4 font-medium text-slate-900">{account.name}</td>
                       <td className="py-3 px-4 text-slate-600">{account.type.replace(/_/g, ' ')}</td>
@@ -184,6 +193,24 @@ function AccountsPage() {
                 </tbody>
               </table>
             </div>
+
+            {!loading && totalItems > 0 && (
+              <TablePaginationBar
+                className="mt-4"
+                page={page}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
+                labels={{
+                  showing: 'Showing',
+                  of: 'of',
+                  rowsPerPage: 'Rows per page:',
+                  previous: 'Previous',
+                  next: 'Next'
+                }}
+              />
+            )}
           </div>
         </motion.div>
       </div>

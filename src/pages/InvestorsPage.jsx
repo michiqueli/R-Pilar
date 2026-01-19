@@ -19,6 +19,7 @@ import usePageTitle from '@/hooks/usePageTitle';
 // Unified Components
 import SearchBar from '@/components/common/SearchBar';
 import ViewToggle from '@/components/common/ViewToggle';
+import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 const InvestorsPage = () => {
   usePageTitle('Inversionistas');
@@ -36,6 +37,8 @@ const InvestorsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({ status: 'all' });
   const [visibleColumns, setVisibleColumns] = useState(['name', 'contact', 'status', 'invested', 'returned', 'netBalance', 'actions']);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,6 +49,10 @@ const InvestorsPage = () => {
   useEffect(() => {
     fetchInvestors();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filters]);
 
   const fetchInvestors = async () => {
     setLoading(true);
@@ -114,6 +121,8 @@ const InvestorsPage = () => {
     
     return matchesSearch && matchesStatus;
   });
+  const totalItems = filteredInvestors.length;
+  const paginatedInvestors = filteredInvestors.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <>
@@ -206,7 +215,7 @@ const InvestorsPage = () => {
                   >
                      {viewMode === 'table' ? (
                         <InvestorsTable 
-                           investors={filteredInvestors}
+                           investors={paginatedInvestors}
                            visibleColumns={visibleColumns}
                            onView={handleView}
                            onEdit={handleEdit}
@@ -214,7 +223,7 @@ const InvestorsPage = () => {
                         />
                      ) : (
                         <InvestorsCards 
-                           investors={filteredInvestors}
+                           investors={paginatedInvestors}
                            onView={handleView}
                            onEdit={handleEdit}
                            onDelete={handleDelete}
@@ -223,7 +232,24 @@ const InvestorsPage = () => {
                   </motion.div>
                )}
              </AnimatePresence>
-           </div>
+          </div>
+
+          {!loading && totalItems > 0 && (
+            <TablePaginationBar
+              page={page}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={setPage}
+              onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
+              labels={{
+                showing: t('common.showing') || 'Mostrando',
+                of: t('common.of') || 'de',
+                rowsPerPage: t('common.rowsPerPage') || 'Filas por pág:',
+                previous: t('common.previous') || 'Anterior',
+                next: t('common.next') || 'Siguiente'
+              }}
+            />
+          )}
 
         </motion.div>
       </div>

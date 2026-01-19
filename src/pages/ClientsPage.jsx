@@ -6,7 +6,6 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/contexts/ThemeProvider';
-import { cn } from '@/lib/utils';
 
 // Components
 import ClientModal from '@/components/clients/ClientModal';
@@ -19,6 +18,7 @@ import usePageTitle from '@/hooks/usePageTitle';
 // Unified Common Components
 import SearchBar from '@/components/common/SearchBar';
 import ViewToggle from '@/components/common/ViewToggle';
+import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 const ClientsPage = () => {
   usePageTitle('Clientes');
@@ -90,6 +90,10 @@ const ClientsPage = () => {
   useEffect(() => {
     fetchClients();
   }, []);
+
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, [searchTerm, filters]);
 
   // -- Derived Data Logic --
   const processedClients = useMemo(() => {
@@ -280,28 +284,40 @@ const ClientsPage = () => {
                    exit={{ opacity: 0, y: -10 }}
                    transition={{ duration: 0.2 }}
                 >
-                   {viewMode === 'table' ? (
-                      <ClientsTable 
-                         clients={paginatedClients}
-                         columns={columns}
-                         onEdit={handleEdit}
-                         onDelete={handleDelete}
-                         sortConfig={sortConfig}
-                         onSort={handleSort}
-                         pagination={{ ...pagination, total: processedClients.length }}
-                         onPageChange={(p) => setPagination(prev => ({ ...prev, page: p }))}
-                         onLimitChange={(l) => setPagination(prev => ({ ...prev, limit: l, page: 1 }))}
-                      />
-                   ) : (
-                      <ClientsCards 
-                         clients={processedClients} 
-                         onEdit={handleEdit}
-                         onDelete={handleDelete}
-                      />
-                   )}
+                     {viewMode === 'table' ? (
+                        <ClientsTable 
+                           clients={paginatedClients}
+                           columns={columns}
+                           onEdit={handleEdit}
+                           onDelete={handleDelete}
+                           sortConfig={sortConfig}
+                           onSort={handleSort}
+                        />
+                     ) : (
+                        <ClientsCards 
+                           clients={paginatedClients} 
+                           onEdit={handleEdit}
+                           onDelete={handleDelete}
+                        />
+                     )}
                 </motion.div>
              )}
           </AnimatePresence>
+
+          <TablePaginationBar
+            page={pagination.page}
+            pageSize={pagination.limit}
+            totalItems={processedClients.length}
+            onPageChange={(p) => setPagination(prev => ({ ...prev, page: p }))}
+            onPageSizeChange={(limit) => setPagination(prev => ({ ...prev, limit, page: 1 }))}
+            labels={{
+              showing: t('common.showing') || 'Mostrando',
+              of: t('common.of') || 'de',
+              rowsPerPage: t('common.rowsPerPage') || 'Filas por pág:',
+              previous: t('common.previous') || 'Anterior',
+              next: t('common.next') || 'Siguiente'
+            }}
+          />
 
         </motion.div>
       </div>

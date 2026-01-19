@@ -19,6 +19,7 @@ import usePageTitle from '@/hooks/usePageTitle';
 // Unified Common Components
 import SearchBar from '@/components/common/SearchBar';
 import ViewToggle from '@/components/common/ViewToggle';
+import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 function ProjectsListPage() {
   const { t } = useTranslation();
@@ -30,6 +31,8 @@ function ProjectsListPage() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   
   const [filters, setFilters] = useState({ 
     status: [], 
@@ -61,6 +64,10 @@ function ProjectsListPage() {
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filters]);
 
   const clientOptions = useMemo(() => {
     const clients = projects
@@ -99,6 +106,11 @@ function ProjectsListPage() {
   };
 
   const filteredProjects = useMemo(() => getFilteredProjects(), [projects, searchTerm, filters]);
+  const totalItems = filteredProjects.length;
+  const paginatedProjects = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredProjects.slice(start, start + pageSize);
+  }, [filteredProjects, page, pageSize]);
 
   const handleNewProject = () => {
     setEditingProject(null);
@@ -220,7 +232,7 @@ function ProjectsListPage() {
                 exit={{ opacity: 0 }}
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               >
-                {filteredProjects.map((project) => (
+                {paginatedProjects.map((project) => (
                   <ProjectCard 
                     key={project.id} 
                     project={project} 
@@ -238,7 +250,7 @@ function ProjectsListPage() {
                 exit={{ opacity: 0 }}
               >
                 <ProjectsTable 
-                  projects={filteredProjects} 
+                  projects={paginatedProjects} 
                   loading={loading} 
                   onView={handleViewProject}
                   onEdit={handleEditProject}
@@ -247,6 +259,23 @@ function ProjectsListPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {!loading && totalItems > 0 && (
+            <TablePaginationBar
+              page={page}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={setPage}
+              onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
+              labels={{
+                showing: t('common.showing') || 'Mostrando',
+                of: t('common.of') || 'de',
+                rowsPerPage: t('common.rowsPerPage') || 'Filas por pág:',
+                previous: t('common.previous') || 'Anterior',
+                next: t('common.next') || 'Siguiente'
+              }}
+            />
+          )}
         </motion.div>
       </div>
 

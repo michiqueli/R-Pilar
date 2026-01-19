@@ -20,10 +20,7 @@ const ClientsTable = ({
   onEdit, 
   onDelete,
   sortConfig,
-  onSort,
-  pagination,
-  onPageChange,
-  onLimitChange
+  onSort
 }) => {
   const navigate = useNavigate();
   const { t } = useTheme();
@@ -219,48 +216,6 @@ const ClientsTable = ({
           </table>
         </div>
       </div>
-      
-      {/* Pagination */}
-      {pagination && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
-           <div className="text-sm text-slate-500 dark:text-slate-400">
-              Mostrando <span className="font-medium text-slate-900 dark:text-white">{Math.min(pagination.total, (pagination.page - 1) * pagination.limit + 1)}</span> a <span className="font-medium text-slate-900 dark:text-white">{Math.min(pagination.total, pagination.page * pagination.limit)}</span> de <span className="font-medium text-slate-900 dark:text-white">{pagination.total}</span> clientes
-           </div>
-           
-           <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                 <span className="text-xs text-slate-500 dark:text-slate-400">Filas por pág:</span>
-                 <select 
-                    className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg py-1 px-2 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
-                    value={pagination.limit}
-                    onChange={(e) => onLimitChange(Number(e.target.value))}
-                 >
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                 </select>
-              </div>
-
-              <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-full p-1 shadow-sm">
-                 <button 
-                    onClick={() => onPageChange(Math.max(1, pagination.page - 1))}
-                    disabled={pagination.page === 1}
-                    className="px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                 >
-                    Anterior
-                 </button>
-                 <div className="w-px h-4 bg-slate-200 dark:bg-slate-700"></div>
-                 <button 
-                    onClick={() => onPageChange(pagination.page + 1)}
-                    disabled={pagination.page * pagination.limit >= pagination.total}
-                    className="px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                 >
-                    Siguiente
-                 </button>
-              </div>
-           </div>
-        </div>
-      )}
     </div>
   );
 };
