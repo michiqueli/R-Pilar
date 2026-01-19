@@ -92,13 +92,13 @@ const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
       <PopoverTrigger asChild>
         <FilterButton 
            activeCount={activeCount}
-           label={t('clients.filters')}
+           label={t('common.filters')}
            isActive={isOpen}
         />
       </PopoverTrigger>
       <PopoverContent className="w-[320px] md:w-[360px] p-0 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl overflow-hidden" align="end">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/50">
-          <h4 className="font-semibold text-slate-900 dark:text-white">{t('clients.filters')}</h4>
+          <h4 className="font-semibold text-slate-900 dark:text-white">{t('common.filters')}</h4>
           <button
             onClick={() => setIsOpen(false)}
             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
@@ -116,9 +116,9 @@ const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
               value={localFilters.status}
               onChange={(val) => handleFilterChange('status', val)}
               options={[
-                { label: t('clients.all'), value: 'all' },
-                { label: t('clients.active'), value: 'active' },
-                { label: t('clients.inactive'), value: 'inactive' }
+                { label: t('common.all'), value: 'all' },
+                { label: t('common.active'), value: 'active' },
+                { label: t('common.inactive'), value: 'inactive' }
               ]}
             />
           </div>
@@ -133,10 +133,10 @@ const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
               value={localFilters.dateRange}
               onChange={(val) => handleFilterChange('dateRange', val)}
               options={[
-                { label: t('clients.all'), value: 'all' },
-                { label: t('clients.today'), value: 'today' },
-                { label: t('clients.week'), value: 'week' },
-                { label: t('clients.month'), value: 'month' }
+                { label: t('common.all'), value: 'all' },
+                { label: t('common.today'), value: 'today' },
+                { label: t('common.week'), value: 'week' },
+                { label: t('common.month'), value: 'month' }
               ]}
             />
           </div>
@@ -151,7 +151,7 @@ const ClientsFiltersPanel = ({ filters, onFiltersChange }) => {
               value={localFilters.projects}
               onChange={(val) => handleFilterChange('projects', val)}
               options={[
-                { label: t('clients.all'), value: 'all' },
+                { label: t('common.all'), value: 'all' },
                 { label: t('clients.withProjects'), value: 'with_projects' },
                 { label: t('clients.withoutProjects'), value: 'without_projects' }
               ]}
