@@ -1,13 +1,16 @@
-
-import React, { useState, useEffect } from 'react';
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  Plus, 
-  Trash2, 
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Trash2,
   Edit2,
   DollarSign,
-  AlertCircle
+  AlertCircle,
+  Layers,
+  RefreshCw,
+  TrendingUp,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/contexts/ThemeProvider';
@@ -18,22 +21,25 @@ import PartidaDetailModal from '@/components/projects/modals/PartidaDetailModal'
 import SubpartidaModal from '@/components/projects/SubpartidaModal';
 import EditarSubPartidaModal from '@/components/modals/EditarSubPartidaModal';
 import AsignarPresupuestoModal from '@/components/modals/AsignarPresupuestoModal';
+import SelectPlantillaModal from '@/components/projects/modals/SelectPlantillaModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
+import { formatCurrencyARS } from '@/lib/formatUtils';
 
 const PlanDeObraTab = ({ projectId }) => {
   const { t } = useTheme();
   const { toast } = useToast();
-  
-  // State
+
+  // Estados de datos
   const [partidas, setPartidas] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [expandedPartidaId, setExpandedPartidaId] = useState(null);
   const [subpartidasMap, setSubpartidasMap] = useState({});
-  const [loadingSubs, setLoadingSubs] = useState({});
-  
-  // Modals
+
+  // Estados de modales
+  const [isPartidaModalOpen, setIsPartidaModalOpen] = useState(false);
+  const [partidaToEdit, setPartidaToEdit] = useState(null);
   const [selectedPartida, setSelectedPartida] = useState(null);
   const [subModalOpen, setSubModalOpen] = useState(false);
   const [activePartidaIdForSub, setActivePartidaIdForSub] = useState(null);
@@ -41,412 +47,327 @@ const PlanDeObraTab = ({ projectId }) => {
   const [editingSubPartida, setEditingSubPartida] = useState(null);
   const [budgetModalOpen, setBudgetModalOpen] = useState(false);
   const [partidaForBudget, setPartidaForBudget] = useState(null);
+  const [showSelectPlantilla, setShowSelectPlantilla] = useState(false);
+
+  // 1. AVANCE GLOBAL: Calculado reactivamente sobre el estado de las partidas
+  const avanceGlobal = useMemo(() => {
+    if (!partidas || partidas.length === 0) return 0;
+    const total = partidas.reduce((acc, p) => acc + (Number(p.progreso) || 0), 0);
+    return Math.round(total / partidas.length);
+  }, [partidas]);
 
   useEffect(() => {
-    if (projectId) fetchBreakdown();
+    if (projectId) loadAllData();
   }, [projectId]);
 
-  const fetchBreakdown = async () => {
+  // 2. CARGA PROFUNDA INICIAL: Calcula promedios reales antes de mostrar la página
+  const loadAllData = async () => {
     setLoading(true);
     try {
-      const data = await projectService.getPartidaBreakdown(projectId);
-      setPartidas(data || []);
-      // Pre-load subpartidas for all to show accurate counts/totals immediately if possible
-      // For now, we load on expand or lazy load, but to get totals we might need all.
-      // We'll stick to lazy load for performance unless needed.
+      const partidasData = await projectService.getPartidaBreakdown(projectId);
+
+      const fullData = await Promise.all(partidasData.map(async (partida) => {
+        const subs = await subpartidaService.getSubpartidas(partida.id);
+
+        let promedioCalculado = 0;
+        if (subs && subs.length > 0) {
+          promedioCalculado = Math.round(
+            subs.reduce((acc, s) => acc + (Number(s.avance_pct) || 0), 0) / subs.length
+          );
+        }
+
+        return {
+          ...partida,
+          progreso: promedioCalculado,
+          sub_items_count: subs.length,
+          sub_items_preloaded: subs
+        };
+      }));
+
+      const newMap = {};
+      fullData.forEach(p => {
+        newMap[p.id] = p.sub_items_preloaded;
+      });
+
+      setSubpartidasMap(newMap);
+      setPartidas(fullData);
     } catch (error) {
-      console.error("Error cargando partidas:", error);
-      toast({ variant: 'destructive', title: t('common.error'), description: 'Error cargando partidas' });
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron sincronizar los avances.' });
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchSubpartidas = async (partidaId) => {
-    setLoadingSubs(prev => ({ ...prev, [partidaId]: true }));
-    try {
-      const subs = await subpartidaService.getSubpartidas(partidaId);
-      setSubpartidasMap(prev => ({ ...prev, [partidaId]: subs }));
-    } catch (error) {
-      console.error("Error cargando sub-partidas:", error);
-      toast({ variant: 'destructive', title: t('common.error'), description: 'Error cargando sub-partidas' });
-    } finally {
-      setLoadingSubs(prev => ({ ...prev, [partidaId]: false }));
-    }
-  };
-
   const toggleExpand = (partidaId) => {
-    if (expandedPartidaId === partidaId) {
-      setExpandedPartidaId(null);
-    } else {
-      setExpandedPartidaId(partidaId);
-      fetchSubpartidas(partidaId);
-    }
+    setExpandedPartidaId(expandedPartidaId === partidaId ? null : partidaId);
   };
 
-  const handleAsignarPresupuesto = async (partidaId, totalPresupuesto) => {
-    let currentSubs = subpartidasMap[partidaId];
-    if (!currentSubs) {
-       const { data, error } = await supabase.from('subpartidas').select('*').eq('partida_id', partidaId);
-       if (error) {
-         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron leer las subpartidas.' });
-         return;
-       }
-       currentSubs = data;
-    }
+  // 3. ACTUALIZACIÓN EN TIEMPO REAL: Sincroniza Subpartida -> Padre -> Global
+  const handleAvanceChange = async (sub, newVal) => {
+    const currentSubs = subpartidasMap[sub.partida_id] || [];
+    const updatedSubs = currentSubs.map(s => s.id === sub.id ? { ...s, avance_pct: newVal } : s);
 
-    if (!currentSubs || currentSubs.length === 0) {
-      toast({ variant: 'destructive', title: 'Atención', description: 'No hay sub-partidas para distribuir el presupuesto.' });
-      return;
-    }
+    // Actualizar mapa de hijos
+    setSubpartidasMap(prev => ({ ...prev, [sub.partida_id]: updatedSubs }));
 
-    const count = currentSubs.length;
-    const amountPerItem = totalPresupuesto / count;
+    // Calcular nuevo promedio del padre
+    const avgProgress = Math.round(updatedSubs.reduce((acc, s) => acc + (Number(s.avance_pct) || 0), 0) / updatedSubs.length);
+
+    // Actualizar estado de partidas (esto dispara el re-render de la barra padre y el avance global)
+    setPartidas(prev => prev.map(p => p.id === sub.partida_id ? { ...p, progreso: avgProgress } : p));
 
     try {
-      const updates = currentSubs.map(sub => 
-        supabase.from('subpartidas').update({ presupuesto: amountPerItem }).eq('id', sub.id)
-      );
-      
-      await Promise.all(updates);
-      await supabase.from('work_items').update({ presupuesto: totalPresupuesto }).eq('id', partidaId);
-
-      await fetchSubpartidas(partidaId);
-      await fetchBreakdown();
-
-      toast({ 
-        title: 'Presupuesto Asignado', 
-        description: `Se distribuyeron ${formatCurrency(totalPresupuesto)} entre ${count} sub-partidas.` 
-      });
-
+      await subpartidaService.updateSubpartida(sub.id, { avance_pct: newVal });
+      await projectService.updatePartidaProgress(sub.partida_id, avgProgress);
     } catch (error) {
-      console.error("Error updating:", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Falló la asignación de presupuesto.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Error al guardar progreso.' });
     }
   };
 
-  const handleActualizarSubPartida = async (subPartidaUpdated) => {
+  // 4. COMPONENTE DE BARRA: Con relleno azul a la izquierda y marcadores
+  const ProgressBarWithMarkers = ({ value, onChange, isReadOnly = false }) => {
+    const safeValue = Math.min(Math.max(Number(value) || 0, 0), 100);
+
+    return (
+      <div className="space-y-2 w-full">
+        <div className="relative h-5 flex items-center group/bar">
+          {/* Marcadores de hito */}
+          <div className="absolute inset-0 flex justify-between items-center px-0.5 pointer-events-none">
+            {[0, 25, 50, 75, 100].map(m => (
+              <div key={m} className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 z-10" />
+            ))}
+          </div>
+
+          {/* Fondo de la barra */}
+          <div className="absolute inset-x-0 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700">
+            {/* Relleno azul animado */}
+            <motion.div
+              className={cn("h-full shadow-sm", safeValue >= 100 ? 'bg-emerald-500' : 'bg-blue-600')}
+              initial={false}
+              animate={{ width: `${safeValue}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+
+          {!isReadOnly && (
+            <>
+              <input
+                type="range" min="0" max="100" step="1"
+                value={safeValue}
+                onChange={(e) => onChange(parseInt(e.target.value))}
+                className="absolute inset-x-0 w-full h-5 opacity-0 cursor-pointer z-20"
+              />
+              {/* Thumb visual personalizado */}
+              <div
+                className="absolute w-4.5 h-4.5 bg-blue-600 rounded-full shadow-lg border-2 border-white pointer-events-none z-30 transition-all duration-75"
+                style={{ left: `calc(${safeValue}% - 9px)` }}
+              />
+            </>
+          )}
+        </div>
+        <div className="flex justify-between text-[10px] text-slate-500 font-bold px-0.5 tabular-nums uppercase">
+          <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+        </div>
+      </div>
+    );
+  };
+  const handleDeletePartida = async (id) => {
+    if (!window.confirm('¿Eliminar partida y todas sus subpartidas?')) return;
     try {
-      const { error: updateError } = await supabase
-        .from('subpartidas')
-        .update({ 
-           nombre: subPartidaUpdated.nombre,
-           presupuesto: subPartidaUpdated.presupuesto,
-           avance_pct: subPartidaUpdated.avance_pct
-        })
-        .eq('id', subPartidaUpdated.id);
-
-      if (updateError) throw updateError;
-
-      const { data: siblings, error: fetchError } = await supabase
-        .from('subpartidas')
-        .select('presupuesto')
-        .eq('partida_id', subPartidaUpdated.partida_id);
-
-      if (fetchError) throw fetchError;
-
-      const newTotal = siblings.reduce((sum, item) => sum + (Number(item.presupuesto) || 0), 0);
-
-      await supabase
-        .from('work_items')
-        .update({ presupuesto: newTotal })
-        .eq('id', subPartidaUpdated.partida_id);
-
-      toast({ title: 'Actualizado', description: 'Sub-partida y presupuesto global actualizados.' });
-      
-      await fetchSubpartidas(subPartidaUpdated.partida_id);
-      await fetchBreakdown(); 
-
+      console.log(id)
+      await projectService.deleteWorkItem(id);
+      loadAllData();
+      toast({ title: 'Partida eliminada.' });
     } catch (error) {
-      console.error("Error:", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar la sub-partida.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la partida.' });
     }
   };
 
-  const handleOpenBudgetModal = (e, partida) => {
-    e.stopPropagation();
-    setPartidaForBudget(partida);
-    setBudgetModalOpen(true);
-  };
-
-  const handleOpenEditSubModal = (e, sub) => {
-    e.stopPropagation();
-    setEditingSubPartida(sub);
-    setEditSubModalOpen(true);
-  };
-
-  const handleAddSubpartida = (e, partidaId) => {
-    e.stopPropagation();
-    setActivePartidaIdForSub(partidaId);
-    setSubModalOpen(true);
-  };
-
+  // Handlers de acciones
+  const handleAddSubpartida = (e, partidaId) => { e.stopPropagation(); setActivePartidaIdForSub(partidaId); setSubModalOpen(true); }
+  const handleOpenEditSubModal = (e, sub) => { e.stopPropagation(); setEditingSubPartida(sub); setEditSubModalOpen(true); };
   const handleDeleteSubpartida = async (e, id, partidaId) => {
     e.stopPropagation();
-    if (!window.confirm(t('messages.confirm_delete'))) return;
-    
+    if (!window.confirm('¿Eliminar subpartida?')) return;
     try {
       await subpartidaService.deleteSubpartida(id);
-      await fetchSubpartidas(partidaId); 
-      await fetchBreakdown();
-      
-      toast({ title: t('common.success'), description: t('messages.success_saved') });
-    } catch (error) {
-       toast({ variant: 'destructive', title: t('common.error'), description: 'Error al eliminar' });
-    }
+      loadAllData();
+      toast({ title: 'Eliminado' });
+    } catch (e) { toast({ variant: 'destructive', title: 'Error' }); }
   };
 
-  const handleSubpartidaSuccess = async () => {
-    if (activePartidaIdForSub) {
-       await fetchSubpartidas(activePartidaIdForSub);
-       await fetchBreakdown(); 
-    }
-  };
-  
-  const handleAvanceChange = async (sub, newVal) => {
-      const updatedSub = { ...sub, avance_pct: newVal };
-      setSubpartidasMap(prev => ({
-          ...prev,
-          [sub.partida_id]: prev[sub.partida_id].map(s => s.id === sub.id ? updatedSub : s)
-      }));
-
-      try {
-          await subpartidaService.updateSubpartida(sub.id, { avance_pct: newVal });
-          // Also update parent progress average
-          const subs = subpartidasMap[sub.partida_id];
-          const newSubs = subs.map(s => s.id === sub.id ? updatedSub : s);
-          const avgProgress = Math.round(newSubs.reduce((acc, s) => acc + (s.avance_pct || 0), 0) / newSubs.length);
-          
-          await projectService.updatePartidaProgress(sub.partida_id, avgProgress);
-      } catch (error) {
-          console.error(error);
-          toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar el avance.' });
-      }
-  };
-
-  const formatCurrency = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val || 0);
-
-  const getStatusColor = (indicator) => {
-    switch (indicator) {
-      case 'green': return 'bg-emerald-500';
-      case 'yellow': return 'bg-yellow-500';
-      case 'red': return 'bg-red-500';
-      default: return 'bg-slate-300';
-    }
+  const handleAsignarPresupuesto = async (partidaId, monto) => {
+    try {
+      await projectService.updatePartidaBudget(partidaId, monto);
+      loadAllData();
+      toast({ title: 'Presupuesto actualizado.' });
+    } catch (error) { toast({ variant: 'destructive', title: 'Error' }); }
   };
 
   return (
-    <div className="space-y-6">
-       {/* Actions Bar */}
-       <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div>
-            <h3 className="font-bold text-lg text-slate-900 dark:text-white">Estructura de Presupuesto</h3>
-            <p className="text-sm text-slate-500">Gestiona las partidas, sub-partidas y asignación de recursos.</p>
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+
+      {/* KPI de Avance Global */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex flex-col lg:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 shadow-inner">
+              <TrendingUp className="w-7 h-7" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Avance Global</p>
+              <h2 className="text-3xl font-black text-slate-900 dark:text-white tabular-nums leading-none">{avanceGlobal}%</h2>
+            </div>
           </div>
-          <Button onClick={() => document.getElementById('add-partida-trigger')?.click()} className="bg-blue-600 hover:bg-blue-700 text-white">
-             <Plus className="w-4 h-4 mr-2" /> Nueva Partida
-          </Button>
-       </div>
+          <div className="flex-1 w-full max-w-2xl">
+            <ProgressBarWithMarkers value={avanceGlobal} isReadOnly={true} />
+          </div>
+        </div>
+      </div>
 
-       {/* Main List */}
-       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm min-h-[400px]">
-          {loading ? (
-             <div className="p-12 text-center">
-                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p className="text-slate-400">Cargando estructura...</p>
-             </div>
-          ) : partidas.length === 0 ? (
-            <div className="p-12 text-center flex flex-col items-center gap-3">
-               <AlertCircle className="w-10 h-10 text-slate-300" />
-               <p className="text-slate-500">No hay partidas definidas.</p>
-               <Button variant="outline" onClick={() => document.getElementById('add-partida-trigger')?.click()}>
-                  Crear primera partida
-               </Button>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-               {partidas.map((p) => {
-                 const isExpanded = expandedPartidaId === p.id;
-                 const subs = subpartidasMap[p.id] || [];
-                 const isLoadingSubs = loadingSubs[p.id];
+      {/* Header Unificado */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600">
+            <Layers className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">Plan de Obra</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Estructura detallada y ejecución técnica.</p>
+          </div>
+        </div>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={() => setShowSelectPlantilla(true)} className="flex-1 sm:flex-none gap-2 rounded-full"><RefreshCw className="w-4 h-4" /> Plantilla</Button>
+          <Button onClick={() => { setPartidaToEdit(null); setIsPartidaModalOpen(true); }} className="flex-1 sm:flex-none gap-2 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/20"><Plus className="w-4 h-4" /> Nueva Partida</Button>
+        </div>
+      </div>
 
-                 return (
-                   <div key={p.id} className="group">
-                      {/* Parent Row */}
-                      <div 
-                        className={cn(
-                          "p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors",
-                          isExpanded && "bg-slate-50 dark:bg-slate-800/30"
-                        )}
-                        onClick={() => toggleExpand(p.id)}
-                      >
-                         <div className={cn("w-1.5 h-10 rounded-full flex-shrink-0", getStatusColor(p.status_indicator))} />
-                         
-                         <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                            {/* Title */}
-                            <div className="md:col-span-5 flex items-center gap-3">
-                               <div className="p-1 rounded-md bg-white border border-slate-200 text-slate-400 shadow-sm">
-                                  {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                               </div>
-                               <div>
-                                  <h4 className="font-bold text-slate-900 dark:text-white text-base">
-                                    {p.is_system ? `${p.name} (General)` : p.name}
-                                  </h4>
-                                  <p className="text-xs text-slate-500 mt-0.5">
-                                     {p.items_count || (subs.length > 0 ? subs.length : 0)} sub-items
-                                  </p>
-                               </div>
-                            </div>
-
-                            {/* Presupuesto */}
-                            <div className="md:col-span-3">
-                               <div className="flex items-center gap-2 group/budget">
-                                 <div>
-                                   <p className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Presupuesto</p>
-                                   <p className="text-sm font-bold text-slate-900 dark:text-white">
-                                     {formatCurrency(p.budget || p.presupuesto)}
-                                   </p>
-                                 </div>
-                                 <Button
-                                    variant="ghost"
-                                    size="iconSm"
-                                    onClick={(e) => handleOpenBudgetModal(e, p)}
-                                    className="h-6 w-6 opacity-0 group-hover/budget:opacity-100 transition-opacity text-blue-500 hover:bg-blue-50"
-                                    title="Distribuir Presupuesto"
-                                 >
-                                    <DollarSign className="w-3.5 h-3.5" />
-                                 </Button>
-                               </div>
-                            </div>
-                            
-                            {/* Actions */}
-                            <div className="md:col-span-4 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={(e) => { e.stopPropagation(); setSelectedPartida(p); }}
-                                >
-                                   <Edit2 className="w-3.5 h-3.5 mr-2" /> Editar
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={(e) => handleAddSubpartida(e, p.id)}
-                                >
-                                   <Plus className="w-3.5 h-3.5 mr-2" /> Sub-item
-                                </Button>
-                            </div>
-                         </div>
+      {/* Tabla de Partidas */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden min-h-[400px]">
+        {loading ? (
+          <div className="p-20 text-center flex flex-col items-center gap-4">
+            <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+            <p className="text-slate-500 font-medium animate-pulse">Sincronizando plan de obra...</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {partidas.map((p) => {
+              const isExpanded = expandedPartidaId === p.id;
+              const subs = subpartidasMap[p.id] || [];
+              return (
+                <div key={p.id} className="group">
+                  <div
+                    className={cn(
+                      "p-5 flex flex-col lg:flex-row lg:items-center gap-6 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors",
+                      isExpanded && "bg-slate-50/50 dark:bg-slate-800/20"
+                    )}
+                    onClick={() => toggleExpand(p.id)}
+                  >
+                    {/* Info de Partida */}
+                    <div className="flex items-center gap-4 lg:w-1/4 min-w-0">
+                      <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 shadow-sm">
+                        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </div>
+                      <div className="min-w-0">
+                        <h4 className="font-extrabold text-slate-900 dark:text-white truncate text-base">{p.name}</h4>
+                        <span className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">
+                          {p.sub_items_count || 0} Sub-items
+                        </span>
+                      </div>
+                    </div>
 
-                      {/* Children */}
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-100"
-                          >
-                             <div className="p-4 pl-8 md:pl-16 space-y-2">
-                                {isLoadingSubs ? (
-                                   <div className="text-xs text-slate-400 py-2 flex items-center gap-2">
-                                      <div className="w-3 h-3 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin"/>
-                                      Cargando detalles...
-                                   </div>
-                                ) : subs.length === 0 ? (
-                                   <div className="text-sm text-slate-500 py-4 italic border-2 border-dashed border-slate-200 rounded-lg text-center">
-                                      No hay sub-partidas. Agrega una para comenzar.
-                                   </div>
-                                ) : (
-                                   subs.map(sub => (
-                                     <div key={sub.id} className="flex flex-col md:flex-row md:items-center gap-4 p-3 rounded-lg bg-white border border-slate-200 shadow-sm hover:border-blue-300 transition-all">
-                                        
-                                        <div className="flex-1">
-                                           <div className="flex justify-between items-start mb-1">
-                                              <p className="font-medium text-slate-800 text-sm">{sub.nombre}</p>
-                                              <p className="font-bold text-slate-900 text-sm">{formatCurrency(sub.presupuesto)}</p>
-                                           </div>
-                                           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                              <div 
-                                                className="h-full bg-blue-500 transition-all duration-500"
-                                                style={{ width: `${sub.avance_pct || 0}%` }}
-                                              />
-                                           </div>
-                                        </div>
+                    {/* Inversión */}
+                    <div className="lg:w-[15%] flex flex-col">
+                      <p className="text-[10px] uppercase text-slate-400 font-black tracking-widest mb-1">Inversión Total</p>
+                      <p className="text-base font-mono font-bold text-slate-700 dark:text-slate-300 tabular-nums">
+                        {formatCurrencyARS(p.budget || p.presupuesto)}
+                      </p>
+                    </div>
 
-                                        {/* Slider Control */}
-                                        <div className="w-full md:w-48 pt-2 md:pt-0">
-                                           <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                                              <span>Avance</span>
-                                              <span className="font-bold text-blue-600">{sub.avance_pct || 0}%</span>
-                                           </div>
-                                           <input 
-                                              type="range" 
-                                              min="0" max="100" 
-                                              value={sub.avance_pct || 0}
-                                              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                              onChange={(e) => handleAvanceChange(sub, parseInt(e.target.value))}
-                                           />
-                                        </div>
+                    {/* Barra Padre */}
+                    <div className="flex-1 min-w-0">
+                      <ProgressBarWithMarkers value={p.progreso} isReadOnly={true} />
+                    </div>
 
-                                        <div className="flex items-center gap-1 border-l pl-3 border-slate-100">
-                                            <Button 
-                                              variant="ghost" 
-                                              size="iconSm" 
-                                              className="text-slate-400 hover:text-blue-600" 
-                                              onClick={(e) => handleOpenEditSubModal(e, sub)}
-                                            >
-                                               <Edit2 className="w-3.5 h-3.5" />
-                                            </Button>
-                                            <Button 
-                                              variant="ghost" 
-                                              size="iconSm" 
-                                              className="text-slate-400 hover:text-red-500" 
-                                              onClick={(e) => handleDeleteSubpartida(e, sub.id, p.id)}
-                                            >
-                                               <Trash2 className="w-3.5 h-3.5" />
-                                            </Button>
-                                        </div>
-                                     </div>
-                                   ))
-                                )}
-                             </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                   </div>
-                 );
-               })}
-            </div>
-          )}
-       </div>
+                    {/* Acciones */}
+                    <div className="flex justify-end gap-2 lg:ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setPartidaForBudget(p); setBudgetModalOpen(true); }}>
+                        <DollarSign className="w-4 h-4 text-emerald-600" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setPartidaToEdit(p); setIsPartidaModalOpen(true); }}>
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-blue-600 bg-blue-50 dark:bg-blue-900/20" onClick={(e) => handleAddSubpartida(e, p.id)}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="iconSm"
+                        className="text-red-500"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Evita que se cierre/abra la fila
+                          handleDeletePartida(p.id); // <--- AQUÍ LE PASAS EL ID
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
 
-       {/* Modals */}
-       <PartidaDetailModal 
-          isOpen={!!selectedPartida}
-          onClose={() => { setSelectedPartida(null); fetchBreakdown(); }}
-          partida={selectedPartida}
-          projectId={projectId}
-       />
-       <SubpartidaModal 
-          isOpen={subModalOpen}
-          onClose={() => setSubModalOpen(false)}
-          partidaId={activePartidaIdForSub}
-          onSuccess={handleSubpartidaSuccess}
-       />
-       <EditarSubPartidaModal 
-          isOpen={editSubModalOpen}
-          onClose={() => setEditSubModalOpen(false)}
-          subPartida={editingSubPartida}
-          onActualizar={handleActualizarSubPartida}
-       />
-       <AsignarPresupuestoModal 
-          isOpen={budgetModalOpen}
-          onClose={() => setBudgetModalOpen(false)}
-          partida={partidaForBudget}
-          onAsignar={handleAsignarPresupuesto}
-       />
+                  {/* Subpartidas Desplegadas */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800"
+                      >
+                        <div className="p-4 pl-12 md:pl-24 space-y-3">
+                          {subs.length === 0 ? (
+                            <div className="text-xs text-slate-400 italic py-4">No hay sub-items registrados.</div>
+                          ) : (
+                            subs.map(sub => (
+                              <div key={sub.id} className="flex flex-col lg:flex-row lg:items-center gap-6 p-4 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-blue-300 transition-all group/sub">
+                                <div className="lg:w-1/4">
+                                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{sub.nombre}</p>
+                                  <p className="text-xs font-mono text-blue-600 font-black mt-1 tabular-nums">{formatCurrencyARS(sub.presupuesto)}</p>
+                                </div>
+                                <div className="flex-1">
+                                  <ProgressBarWithMarkers
+                                    value={sub.avance_pct}
+                                    onChange={(val) => handleAvanceChange(sub, val)}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2 border-l pl-4 border-slate-100 dark:border-slate-800 min-w-[80px] justify-end">
+                                  <span className="text-xs font-black text-blue-600 mr-2 tabular-nums">{sub.avance_pct}%</span>
+                                  <Button variant="ghost" size="iconSm" onClick={(e) => handleOpenEditSubModal(e, sub)}><Edit2 className="w-3.5 h-3.5" /></Button>
+                                  <Button variant="ghost" size="iconSm" className="text-red-500" onClick={(e) => handleDeleteSubpartida(e, sub.id, p.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Modales */}
+      <PartidaDetailModal
+        isOpen={isPartidaModalOpen}
+        onClose={() => { setIsPartidaModalOpen(false); setPartidaToEdit(null); loadAllData(); }}
+        partida={partidaToEdit}
+        projectId={projectId}
+      />
+      <SubpartidaModal isOpen={subModalOpen} onClose={() => setSubModalOpen(false)} partidaId={activePartidaIdForSub} onSuccess={() => loadAllData()} />
+      <EditarSubPartidaModal isOpen={editSubModalOpen} onClose={() => setEditSubModalOpen(false)} subPartida={editingSubPartida} onActualizar={() => loadAllData()} />
+      <AsignarPresupuestoModal isOpen={budgetModalOpen} onClose={() => setBudgetModalOpen(false)} partida={partidaForBudget} onAsignar={handleAsignarPresupuesto} />
+      <SelectPlantillaModal isOpen={showSelectPlantilla} onClose={() => setShowSelectPlantilla(false)} onSuccess={() => loadAllData()} proyectoId={projectId} />
     </div>
   );
 };

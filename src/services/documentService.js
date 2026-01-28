@@ -2,19 +2,28 @@
 import { supabase } from '@/lib/customSupabaseClient';
 
 export const documentService = {
-  
+
   async uploadDocument({ file, title, type, clientId, projectId, visibleInClient }) {
+    // 0. Obtener usuario antes que nada
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error("Debes estar autenticado para subir documentos");
+
     // 1. Upload to Storage
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-    // Organize by project or client if possible, otherwise flat or date-based
-    const path = projectId ? `projects/${projectId}/${fileName}` : (clientId ? `clients/${clientId}/${fileName}` : `general/${fileName}`);
-    
+    const path = projectId
+      ? `projects/${projectId}/${fileName}`
+      : (clientId ? `clients/${clientId}/${fileName}` : `general/${fileName}`);
+
+    // Aquí es donde saltaba el error 403
     const { error: uploadError } = await supabase.storage
       .from('documents')
       .upload(path, file);
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      console.error("Error en Storage:", uploadError);
+      throw uploadError;
+    }
 
     // 2. Get Public URL
     const { data: { publicUrl } } = supabase.storage
@@ -22,8 +31,6 @@ export const documentService = {
       .getPublicUrl(path);
 
     // 3. Create DB Record
-    const { data: { user } } = await supabase.auth.getUser();
-
     const { data, error: dbError } = await supabase
       .from('documents')
       .insert([
@@ -37,7 +44,7 @@ export const documentService = {
           client_id: clientId || null,
           project_id: projectId || null,
           visible_in_client: visibleInClient || false,
-          uploaded_by: user?.id
+          uploaded_by: user.id
         }
       ])
       .select()
@@ -46,13 +53,12 @@ export const documentService = {
     if (dbError) throw dbError;
     return data;
   },
-
   async getDocuments({ clientId, projectId, includeClientVisible = false }) {
     // Removed the invalid relationship 'uploaded_by_user:uploaded_by(...)'
     // because there is no foreign key constraint on 'uploaded_by' to auth.users in the public schema provided.
     let query = supabase
       .from('documents')
-      .select(`*`) 
+      .select(`*`)
       .order('created_at', { ascending: false });
 
     if (projectId) {
@@ -67,7 +73,7 @@ export const documentService = {
 
     const { data, error } = await query;
     if (error) throw error;
-    
+
     return data;
   },
 

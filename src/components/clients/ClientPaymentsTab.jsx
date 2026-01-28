@@ -70,31 +70,6 @@ const ClientPaymentsTab = ({ clientId }) => {
 
   return (
     <div className="space-y-6">
-       {/* Secondary KPIs */}
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <KpiCard
-            title="Total Facturado"
-            value={formatCurrency(stats.billed)}
-            icon={FileText}
-            tone="blue"
-          />
-          <KpiCard
-            title="Total Cobrado"
-            value={formatCurrency(stats.collected)}
-            icon={DollarSign}
-            tone="emerald"
-            showBar
-          />
-          <KpiCard
-            title="Saldo Pendiente"
-            value={formatCurrency(stats.balance)}
-            icon={DollarSign}
-            tone={stats.balance > 0 ? 'red' : 'emerald'}
-            valueClassName={stats.balance > 0 ? 'text-red-600' : 'text-emerald-600'}
-            description={stats.balance > 0 ? 'El cliente debe' : 'A favor / Al día'}
-          />
-       </div>
-
        <div className="flex justify-between items-center pt-2">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Movimientos</h3>
           <div className="flex gap-2">

@@ -180,13 +180,14 @@ const ClientDetailPage = () => {
                   <Button variant="outline" className="rounded-full" onClick={() => setIsEditModalOpen(true)}>
                      <Edit className="w-4 h-4 mr-2" /> Editar Cliente
                   </Button>
-                  <Button 
+                 {/* <Button 
                     variant="primary" 
                     className="rounded-full shadow-lg shadow-blue-200 dark:shadow-blue-900/20"
                     onClick={() => toast({ title: "Próximamente", description: "Crear presupuesto no implementado aún" })}
                   >
                      <DollarSign className="w-4 h-4 mr-2" /> Crear Presupuesto
                   </Button>
+                  */}
                </div>
             </div>
           </Card>

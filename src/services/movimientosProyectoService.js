@@ -153,7 +153,6 @@ export const movimientosProyectoService = {
    * Calcula los totales globales del proyecto (Solo confirmados)
    */
   async getTotalesProyecto(proyectoId) {
-    console.log('[movimientosProyectoService] getTotalesProyecto', proyectoId);
     try {
       const movimientos = await this.getMovimientosConfirmados(proyectoId);
       
@@ -163,6 +162,7 @@ export const movimientosProyectoService = {
 
       movimientos.forEach(m => {
         const monto = Number(m.monto_ars) || 0;
+        // Clasificación basada en tu nueva estructura
         if (m.tipo === 'INGRESO') {
           ingresos += monto;
         } else if (m.tipo === 'GASTO' || m.tipo === 'DEVOLUCION') {
@@ -176,15 +176,14 @@ export const movimientosProyectoService = {
         ingresos,
         gastos,
         inversiones,
-        resultado: ingresos - gastos, // Operational result usually excludes capital investments
-        flujoNeto: (ingresos + inversiones) - gastos
+        resultado: ingresos - gastos, // Resultado operativo
+        flujoNeto: (ingresos + inversiones) - gastos // Caja real
       };
     } catch (error) {
-       console.error('[movimientosProyectoService] Error calculating totals:', error);
+       console.error('[movimientosProyectoService] Error:', error);
        return { ingresos: 0, gastos: 0, inversiones: 0, resultado: 0, flujoNeto: 0 };
     }
   },
-
   // Alias for specific KPI getters
   async getIngresosTotalesProyecto(proyectoId) {
     const totals = await this.getTotalesProyecto(proyectoId);

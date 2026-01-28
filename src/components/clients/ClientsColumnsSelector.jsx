@@ -49,7 +49,7 @@ const ClientsColumnsSelector = ({ columns, onColumnsChange }) => {
       </PopoverTrigger>
       <PopoverContent className="w-64 p-0 rounded-[12px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg" align="end">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
-          <h4 className="font-semibold text-slate-900 dark:text-white text-sm">{t('clients.columnsTitle')}</h4>
+          <h4 className="font-semibold text-slate-900 dark:text-white text-sm text-center">{t('clients.columnsTitle')}</h4>
         </div>
         <div className="p-4 space-y-3">
           {Object.entries(columns).map(([key, isVisible]) => (

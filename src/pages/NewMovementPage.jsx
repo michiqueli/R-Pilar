@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
 import DatePickerInput from '@/components/ui/DatePickerInput';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 // Supabase and Services
 import { supabase } from '@/lib/customSupabaseClient';
@@ -714,8 +715,17 @@ const NewMovementPage = () => {
                         </div>
                         <div className={cn(mappedFields.fecha && "ring-1 ring-green-400 rounded-md")}>
                            <DatePickerInput
-                              date={formData.fecha ? new Date(formData.fecha) : null}
-                              onSelect={(d) => setFormData({ ...formData, fecha: d ? d.toISOString().split('T')[0] : '' })}
+                              // Para mostrarla bien, le sumamos el mediodía para evitar desfases de lectura
+                              date={formData.fecha ? new Date(formData.fecha + 'T12:00:00') : null}
+                              onSelect={(d) => {
+                                 if (!d) {
+                                    setFormData({ ...formData, fecha: '' });
+                                    return;
+                                 }
+                                 // Usamos format para obtener el string 'yyyy-MM-dd' en base a la hora local
+                                 const formattedDate = format(d, 'yyyy-MM-dd');
+                                 setFormData({ ...formData, fecha: formattedDate });
+                              }}
                            />
                         </div>
                      </div>

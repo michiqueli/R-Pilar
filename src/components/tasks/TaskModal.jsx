@@ -30,9 +30,13 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
     priority: 'MEDIA'
   });
 
+  // 1. Fetch de proyectos optimizado
   useEffect(() => {
     if (isOpen) {
-      console.log("[TaskModal] Opened. Preselected Project ID:", preselectedProjectId);
+      const fetchProjects = async () => {
+        const { data } = await supabase.from('projects').select('id, name').eq('is_deleted', false).order('name');
+        setProjects(data || []);
+      };
       fetchProjects();
       
       if (taskToEdit) {
@@ -59,23 +63,11 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
     }
   }, [isOpen, taskToEdit, preselectedProjectId]);
 
-  const fetchProjects = async () => {
-    const { data } = await supabase.from('projects').select('id, name').eq('is_deleted', false).order('name');
-    setProjects(data || []);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validation
     if (!formData.title.trim()) {
       return toast({ variant: 'destructive', title: 'Error', description: 'El título es obligatorio.' });
-    }
-    
-    // If we are in project context, ensure project_id is set
-    if (preselectedProjectId && formData.project_id !== preselectedProjectId) {
-       console.warn("[TaskModal] Project ID mismatch corrected manually.");
-       formData.project_id = preselectedProjectId;
     }
 
     setLoading(true);
@@ -84,7 +76,7 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
       const payload = {
         nombre: formData.title,
         descripcion: formData.description,
-        proyecto_id: formData.project_id || null,
+        proyecto_id: preselectedProjectId || formData.project_id || null, // Prioridad al contexto del proyecto
         asignado_a: formData.assigned_to,
         estado: formData.status,
         prioridad: formData.priority,
@@ -92,33 +84,43 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
         fecha_actualizacion: new Date().toISOString()
       };
 
+      let error;
+
       if (taskToEdit) {
-        console.log("[TaskModal] Updating task:", taskToEdit.id, payload);
-        const { error } = await supabase
+        // UPDATE
+        const { error: updateError } = await supabase
           .from('tareas')
           .update(payload)
           .eq('id', taskToEdit.id);
-          
-        if (error) throw error;
-        toast({ title: 'Éxito', description: 'Tarea actualizada correctamente.' });
+        error = updateError;
       } else {
-        // Create new
+        // INSERT
         payload.fecha_creacion = new Date().toISOString();
-        console.log("[TaskModal] Creating new task with payload:", payload);
-        
-        const { error } = await supabase
+        const { error: insertError } = await supabase
           .from('tareas')
           .insert([payload]);
-          
-        if (error) throw error;
-        toast({ title: 'Éxito', description: 'Tarea creada correctamente.' });
+        error = insertError;
       }
       
-      onSuccess();
-      onClose();
+      if (error) throw error;
+
+      toast({ 
+        title: 'Éxito', 
+        description: taskToEdit ? 'Tarea actualizada.' : 'Tarea creada correctamente.' 
+      });
+
+      // IMPORTANTE: Primero cerramos el modal, luego notificamos al padre
+      // para que refresque la lista.
+      onClose(); 
+      if (onSuccess) onSuccess(); 
+      
     } catch (error) {
-      console.error("[TaskModal] Error saving task:", error);
-      toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo guardar la tarea.' });
+      console.error("[TaskModal] Error:", error);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Error', 
+        description: error.message || 'No se pudo guardar la tarea.' 
+      });
     } finally {
       setLoading(false);
     }

@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Edit2, 
   Trash2, 
   CheckCircle2, 
   Circle, 
   Loader2, 
-  Calendar, 
   User,
-  Briefcase,
   ListTodo,
   Clock,
   CheckCircle,
@@ -18,7 +16,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/Button';
-import KpiCard from '@/components/ui/KpiCard'; // Importamos tu nuevo componente
+import KpiCard from '@/components/ui/KpiCard';
 import TablePaginationBar from '@/components/common/TablePaginationBar';
 
 const TasksTable = ({ 
@@ -26,104 +24,84 @@ const TasksTable = ({
   proyectoId, 
   onReload,
   showProjectColumn = false,
-  onEdit 
+  onEdit,
+  externalFilter = 'TODAS' // Recibimos el filtro del padre
 }) => {
   const { toast } = useToast();
   
-  // State Management
   const [localTasks, setLocalTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
-  const [filter, setFilter] = useState('TODAS');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Función para cargar tareas desde DB optimizada con useCallback
   const loadTareas = useCallback(async () => {
-    // Si ya estamos cargando, no repetir
     if (loading) return;
-
-    console.log(`[TasksTable] Cargando tareas... Project Filter: ${proyectoId || 'None'}`);
     setLoading(true);
-    
     try {
       let query = supabase
         .from('tareas')
-        .select(`
-          *,
-          projects:proyecto_id ( name )
-        `)
+        .select(`*, projects:proyecto_id ( name )`)
         .order('fecha_creacion', { ascending: false });
 
-      if (proyectoId) {
-        query = query.eq('proyecto_id', proyectoId);
-      }
+      if (proyectoId) query = query.eq('proyecto_id', proyectoId);
 
       const { data, error } = await query;
       if (error) throw error;
-      
       setLocalTasks(data || []);
     } catch (error) {
-      console.error("[TasksTable] Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error al cargar tareas",
-        description: error.message
-      });
+      toast({ variant: "destructive", title: "Error", description: error.message });
     } finally {
       setLoading(false);
     }
-  }, [proyectoId, toast]); // Solo se redefine si cambia proyectoId
+  }, [proyectoId, toast]);
 
-  // Sincronización corregida: Solo sincroniza si initialTasks tiene contenido, 
-  // de lo contrario carga de la DB una sola vez.
   useEffect(() => {
     if (initialTasks && initialTasks.length > 0) {
       setLocalTasks(initialTasks);
     } else {
       loadTareas();
     }
-    // Eliminamos initialTasks de las dependencias para evitar el bucle infinito 
-    // provocado por referencias de arrays nuevas en cada render del padre.
-  }, [proyectoId, loadTareas]); 
+  }, [proyectoId, initialTasks, loadTareas]);
 
-  // Handle status change
+  // CORRECCIÓN: Filtrado reactivo basado en externalFilter
+  const filteredTasks = useMemo(() => {
+    if (!externalFilter || externalFilter === 'TODAS') return localTasks;
+    return localTasks.filter(task => task.estado === externalFilter);
+  }, [localTasks, externalFilter]);
+
+  // CORRECCIÓN: Resetear a página 1 cuando cambia el filtro
+  useEffect(() => {
+    setPage(1);
+  }, [externalFilter]);
+
+  const totalItems = filteredTasks.length;
+  const paginatedTasks = filteredTasks.slice((page - 1) * pageSize, page * pageSize);
+
+  const counts = useMemo(() => ({
+    total: localTasks.length,
+    pendientes: localTasks.filter(t => t.estado === 'PENDIENTE').length,
+    en_curso: localTasks.filter(t => t.estado === 'EN_CURSO').length,
+    finalizadas: localTasks.filter(t => t.estado === 'FINALIZADA').length,
+  }), [localTasks]);
+
+  // Handlers (handleChangeEstado, handleDelete, etc. se mantienen igual...)
   const handleChangeEstado = async (tareaId, nuevoEstado) => {
     setUpdatingId(tareaId);
     try {
       const now = new Date().toISOString();
-
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('tareas')
-        .update({ 
-          estado: nuevoEstado,
-          fecha_actualizacion: now
-        })
-        .eq('id', tareaId)
-        .select()
-        .single();
+        .update({ estado: nuevoEstado, fecha_actualizacion: now })
+        .eq('id', tareaId);
 
       if (error) throw error;
 
-      setLocalTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === tareaId ? { ...task, estado: nuevoEstado, fecha_actualizacion: now } : task
-        )
-      );
-
-      toast({
-        title: "Estado actualizado",
-        description: `Tarea marcada como ${nuevoEstado.replace('_', ' ').toLowerCase()}`,
-      });
-      
+      setLocalTasks(prev => prev.map(t => t.id === tareaId ? { ...t, estado: nuevoEstado, fecha_actualizacion: now } : t));
+      toast({ title: "Actualizado", description: `Tarea en estado ${nuevoEstado.toLowerCase()}` });
       if (onReload) onReload();
     } catch (error) {
-      console.error("[handleChangeEstado] Exception:", error);
-      toast({
-        variant: "destructive",
-        title: "Error al actualizar",
-        description: "No se pudo cambiar el estado."
-      });
+      toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar." });
     } finally {
       setUpdatingId(null);
     }
@@ -136,38 +114,19 @@ const TasksTable = ({
   };
 
   const handleDelete = async (tareaId) => {
-    if (!window.confirm("¿Estás seguro de que quieres eliminar esta tarea?")) return;
+    if (!window.confirm("¿Eliminar tarea?")) return;
     setUpdatingId(tareaId);
     try {
       const { error } = await supabase.from('tareas').delete().eq('id', tareaId);
       if (error) throw error;
       setLocalTasks(prev => prev.filter(t => t.id !== tareaId));
-      toast({ title: "Tarea eliminada correctamente" });
       if (onReload) onReload();
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar." });
+      toast({ variant: "destructive", title: "Error" });
     } finally {
       setUpdatingId(null);
     }
   };
-
-  const filteredTasks = localTasks.filter(task => {
-    if (filter === 'TODAS') return true;
-    return task.estado === filter;
-  });
-  const totalItems = filteredTasks.length;
-  const paginatedTasks = filteredTasks.slice((page - 1) * pageSize, page * pageSize);
-
-  const counts = {
-    total: localTasks.length,
-    pendientes: localTasks.filter(t => t.estado === 'PENDIENTE').length,
-    en_curso: localTasks.filter(t => t.estado === 'EN_CURSO').length,
-    finalizadas: localTasks.filter(t => t.estado === 'FINALIZADA').length,
-  };
-
-  useEffect(() => {
-    setPage(1);
-  }, [filter, localTasks]);
 
   const getStatusColor = (estado) => {
     switch (estado) {
@@ -180,169 +139,80 @@ const TasksTable = ({
 
   return (
     <div className="space-y-4">
-      {/* KPI Cards Summary - USANDO KPICARD ESTANDARIZADO */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard 
-          title="Total Tareas" 
-          value={counts.total} 
-          icon={ListTodo} 
-          tone="slate" 
-        />
-        <KpiCard 
-          title="Pendientes" 
-          value={counts.pendientes} 
-          icon={Clock} 
-          tone="amber" 
-        />
-        <KpiCard 
-          title="En Curso" 
-          value={counts.en_curso} 
-          icon={RefreshCw} 
-          tone="blue" 
-        />
-        <KpiCard 
-          title="Finalizadas" 
-          value={counts.finalizadas} 
-          icon={CheckCircle} 
-          tone="emerald" 
-        />
-      </div>
-
-      {/* Filters Buttons */}
-      <div className="flex flex-wrap gap-2 pb-2">
-        {['TODAS', 'PENDIENTE', 'EN_CURSO', 'FINALIZADA'].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={cn(
-              "px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors border",
-              filter === f 
-                ? "bg-blue-600 text-white border-blue-600" 
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-            )}
-          >
-            {f.charAt(0) + f.slice(1).toLowerCase().replace('_', ' ')}
-            <span className="ml-2 opacity-70 bg-white/20 px-1.5 py-0.5 rounded-full text-[10px]">
-               {f === 'TODAS' ? counts.total : 
-                f === 'PENDIENTE' ? counts.pendientes :
-                f === 'EN_CURSO' ? counts.en_curso : counts.finalizadas}
-            </span>
-          </button>
-        ))}
+        <KpiCard title="Total Tareas" value={counts.total} icon={ListTodo} tone="slate" />
+        <KpiCard title="Pendientes" value={counts.pendientes} icon={Clock} tone="amber" />
+        <KpiCard title="En Curso" value={counts.en_curso} icon={RefreshCw} tone="blue" />
+        <KpiCard title="Finalizadas" value={counts.finalizadas} icon={CheckCircle} tone="emerald" />
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         {loading && localTasks.length === 0 ? (
           <div className="p-8 text-center text-slate-500 flex justify-center items-center gap-2">
-            <Loader2 className="w-5 h-5 animate-spin" /> Cargando tareas...
+            <Loader2 className="w-5 h-5 animate-spin" /> Cargando...
           </div>
         ) : filteredTasks.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">
-            {filter === 'TODAS' ? 'No hay tareas registradas.' : 'No hay tareas con este estado.'}
+          <div className="p-12 text-center text-slate-400">
+            <ListTodo className="w-8 h-8 mx-auto mb-2 opacity-20" />
+            <p>{externalFilter === 'TODAS' ? 'No hay tareas.' : `No hay tareas ${externalFilter.toLowerCase()}.`}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 border-b border-slate-100">
+              <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase text-[10px] font-bold">
                 <tr>
                   <th className="py-3 px-4 w-12 text-center">✓</th>
-                  <th className="py-3 px-4 font-semibold text-slate-700">Tarea</th>
-                  {showProjectColumn && <th className="py-3 px-4 font-semibold text-slate-700">Proyecto</th>}
-                  <th className="py-3 px-4 font-semibold text-slate-700">Asignado</th>
-                  <th className="py-3 px-4 font-semibold text-slate-700">Estado</th>
-                  <th className="py-3 px-4 font-semibold text-slate-700">Vence</th>
-                  <th className="py-3 px-4 font-semibold text-slate-700 text-right">Acciones</th>
+                  <th className="py-3 px-4">Tarea</th>
+                  {showProjectColumn && <th className="py-3 px-4">Proyecto</th>}
+                  <th className="py-3 px-4">Asignado</th>
+                  <th className="py-3 px-4">Estado</th>
+                  <th className="py-3 px-4">Vence</th>
+                  <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {paginatedTasks.map((task) => {
                   const isCompleted = task.estado === 'FINALIZADA';
-                  const isUpdating = updatingId === task.id;
-
                   return (
-                    <tr 
-                      key={task.id} 
-                      className={cn(
-                        "hover:bg-slate-50/80 transition-colors group",
-                        isUpdating ? "opacity-50 pointer-events-none" : ""
-                      )}
-                    >
+                    <tr key={task.id} className={cn("hover:bg-slate-50/80 transition-colors group", updatingId === task.id && "opacity-50 pointer-events-none")}>
                       <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => handleToggleFinalizada(task)}
-                          disabled={isUpdating}
-                          className="focus:outline-none hover:scale-110 transition-transform"
-                        >
-                          {isCompleted ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-500" />
-                          ) : (
-                            <Circle className="w-5 h-5 text-slate-300 hover:text-blue-500" />
-                          )}
+                        <button onClick={() => handleToggleFinalizada(task)} className="focus:outline-none hover:scale-110 transition-transform">
+                          {isCompleted ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Circle className="w-5 h-5 text-slate-300" />}
                         </button>
                       </td>
                       <td className="py-3 px-4">
-                        <div className={cn("font-medium text-slate-900", isCompleted && "line-through text-slate-400")}>
-                          {task.nombre}
-                        </div>
-                        {task.descripcion && (
-                          <div className="text-xs text-slate-500 truncate max-w-[200px]">
-                            {task.descripcion}
-                          </div>
-                        )}
+                        <div className={cn("font-medium text-slate-900", isCompleted && "line-through text-slate-400")}>{task.nombre}</div>
+                        {task.descripcion && <div className="text-[11px] text-slate-500 truncate max-w-[180px]">{task.descripcion}</div>}
                       </td>
-                      {showProjectColumn && (
-                        <td className="py-3 px-4 text-slate-600">
-                           {task.projects?.name || '-'}
-                        </td>
-                      )}
+                      {showProjectColumn && <td className="py-3 px-4 text-slate-600">{task.projects?.name || '-'}</td>}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
-                           <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                             {task.asignado_a ? task.asignado_a.charAt(0).toUpperCase() : <User className="w-3 h-3" />}
+                           <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-[10px] font-bold text-blue-600 border border-blue-100">
+                             {task.asignado_a ? task.asignado_a.charAt(0).toUpperCase() : '?'}
                            </div>
-                           <span className="text-slate-600 truncate max-w-[100px]">{task.asignado_a || 'Sin asignar'}</span>
+                           <span className="text-slate-600 text-xs">{task.asignado_a || 'Sin asignar'}</span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="relative">
-                          <select
-                            value={task.estado}
-                            onChange={(e) => handleChangeEstado(task.id, e.target.value)}
-                            disabled={isUpdating}
-                            className={cn(
-                              "appearance-none pl-2 pr-8 py-1 rounded-md text-xs font-semibold border cursor-pointer focus:outline-none",
-                              getStatusColor(task.estado)
-                            )}
-                          >
-                            <option value="PENDIENTE">⏳ Pendiente</option>
-                            <option value="EN_CURSO">🔄 En Curso</option>
-                            <option value="FINALIZADA">✅ Finalizada</option>
-                          </select>
-                          {isUpdating && <Loader2 className="w-3 h-3 animate-spin absolute right-2 top-1.5 text-slate-400" />}
-                        </div>
+                        <select
+                          value={task.estado}
+                          onChange={(e) => handleChangeEstado(task.id, e.target.value)}
+                          className={cn("appearance-none px-2 py-1 rounded-md text-[10px] font-bold border cursor-pointer focus:outline-none uppercase", getStatusColor(task.estado))}
+                        >
+                          <option value="PENDIENTE">⏳ Pendiente</option>
+                          <option value="EN_CURSO">🔄 En Curso</option>
+                          <option value="FINALIZADA">✅ Finalizada</option>
+                        </select>
                       </td>
-                      <td className="py-3 px-4 text-slate-500 text-xs font-mono">
+                      <td className="py-3 px-4 text-slate-500 text-[11px] font-mono">
                         {task.fecha_vencimiento ? formatDate(task.fecha_vencimiento) : '-'}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button 
-                            variant="ghost" 
-                            size="iconSm" 
-                            onClick={() => onEdit && onEdit(task)}
-                            className="h-8 w-8 text-slate-400 hover:text-blue-600"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="iconSm"
-                            onClick={() => handleDelete(task.id)}
-                            className="h-8 w-8 text-slate-400 hover:text-red-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <Button variant="ghost" size="iconSm" onClick={() => onEdit && onEdit(task)} className="h-7 w-7 text-slate-400 hover:text-blue-600"><Edit2 className="w-3.5 h-3.5" /></Button>
+                          <Button variant="ghost" size="iconSm" onClick={() => handleDelete(task.id)} className="h-7 w-7 text-slate-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></Button>
                         </div>
                       </td>
                     </tr>
@@ -356,18 +226,10 @@ const TasksTable = ({
 
       {!loading && totalItems > 0 && (
         <TablePaginationBar
-          page={page}
-          pageSize={pageSize}
-          totalItems={totalItems}
+          page={page} pageSize={pageSize} totalItems={totalItems}
           onPageChange={setPage}
           onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(1); }}
-          labels={{
-            showing: 'Mostrando',
-            of: 'de',
-            rowsPerPage: 'Filas por pág:',
-            previous: 'Anterior',
-            next: 'Siguiente'
-          }}
+          labels={{ showing: 'Mostrando', of: 'de', rowsPerPage: 'Filas:', previous: 'Ant.', next: 'Sig.' }}
         />
       )}
     </div>

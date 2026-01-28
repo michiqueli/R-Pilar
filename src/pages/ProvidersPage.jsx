@@ -196,7 +196,7 @@ function ProvidersPage() {
           </div>
 
           {/* 3. Content */}
-          <div className="min-h-[400px]">
+          <div >
              <AnimatePresence mode="wait">
                {loading ? (
                   <motion.div 

@@ -15,20 +15,21 @@ import { movimientoService } from '@/services/movimientoService';
 import { projectService } from '@/services/projectService';
 import { investorService } from '@/services/investorService';
 import { formatDate, formatCurrencyARS, formatCurrencyUSD } from '@/lib/formatUtils';
+import { format } from 'date-fns';
 
-const MovimientoModal = ({ 
-  isOpen, 
-  onClose, 
-  onSuccess, 
-  movimiento = null, 
-  initialType = 'gasto', 
-  initialProjectId = null 
+const MovimientoModal = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  movimiento = null,
+  initialType = 'gasto',
+  initialProjectId = null
 }) => {
   const { t } = useTheme();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
-  
+
   // Catalogs
   const [projects, setProjects] = useState([]);
   const [partidas, setPartidas] = useState([]);
@@ -47,15 +48,15 @@ const MovimientoModal = ({
     projectId: '',
     partidaId: '',
     providerId: '',
-    accountId: '',
+    accountId: null,
     inversionistaId: '',
     categoryId: '',
     description: '',
     date: new Date().toISOString().split('T')[0],
     notes: '',
-    status: 'Pendiente', 
+    status: 'Pendiente',
     amount_ars: '',
-    fx_rate: '1500', 
+    fx_rate: '1500',
     vat_included: false,
     vat_percent: '21',
   });
@@ -110,7 +111,7 @@ const MovimientoModal = ({
       notes: '',
       status: 'Pendiente',
       amount_ars: '',
-      fx_rate: '1500', 
+      fx_rate: '1500',
       vat_included: false,
       vat_percent: '21',
     });
@@ -148,12 +149,12 @@ const MovimientoModal = ({
       supabase.from('catalog_expense_type').select('id, name').eq('is_active', true),
       investorService.getInvestors()
     ]);
-    
+
     setProjects(projs.data || []);
     setProviders(provs.data || []);
     setAccounts(accs.data || []);
     setExpenseTypes(cats.data || []);
-    setInvestors(invs || []);
+    setInvestors(invs, data || []);
   };
 
   const fetchPartidasForProject = async (projId) => {
@@ -169,7 +170,7 @@ const MovimientoModal = ({
     const amount = parseFloat(formData.amount_ars) || 0;
     const rate = parseFloat(formData.fx_rate) || 1;
     const vatPct = parseFloat(formData.vat_percent) || 0;
-    
+
     let net = 0;
     let vat = 0;
     let total = 0;
@@ -224,7 +225,7 @@ const MovimientoModal = ({
 
   const removeExistingFile = async () => {
     if (window.confirm('¿Eliminar comprobante existente?')) {
-        setExistingFileUrl(null); 
+      setExistingFileUrl(null);
     }
   };
 
@@ -232,21 +233,21 @@ const MovimientoModal = ({
     if (!formData.projectId) return toast({ variant: 'destructive', title: 'Error', description: t('movimientos.project_required') });
     if (!formData.description.trim()) return toast({ variant: 'destructive', title: 'Error', description: t('movimientos.description_required') });
     if (!formData.amount_ars || parseFloat(formData.amount_ars) <= 0) return toast({ variant: 'destructive', title: 'Error', description: t('movimientos.amount_invalid') });
-    
+
     // Type specific validation
     if ((formData.type === 'INVERSION_RECIBIDA' || formData.type === 'DEVOLUCION_INVERSION') && !formData.inversionistaId) {
-        return toast({ variant: 'destructive', title: 'Error', description: 'El inversionista es obligatorio' });
+      return toast({ variant: 'destructive', title: 'Error', description: 'El inversionista es obligatorio' });
     }
-    
+
     setLoading(true);
     try {
       let finalPartidaId = formData.partidaId;
-      
+
       if (formData.type === 'gasto' && !finalPartidaId) {
-          const defaultPartida = await projectService.ensureDefaultPartida(formData.projectId);
-          if (defaultPartida) {
-              finalPartidaId = defaultPartida.id;
-          }
+        const defaultPartida = await projectService.ensureDefaultPartida(formData.projectId);
+        if (defaultPartida) {
+          finalPartidaId = defaultPartida.id;
+        }
       }
 
       let finalFileUrl = existingFileUrl;
@@ -260,7 +261,7 @@ const MovimientoModal = ({
         projectId: formData.projectId,
         partidaId: finalPartidaId,
         description: formData.description,
-        amount: calculated.total_amount, 
+        amount: calculated.total_amount,
         amount_ars: parseFloat(formData.amount_ars),
         category: formData.categoryId,
         responsible: formData.type === 'gasto' ? formData.providerId : formData.accountId,
@@ -301,15 +302,15 @@ const MovimientoModal = ({
   const isInvestmentType = isInversion || isDevolucion;
 
   const getTypeColor = () => {
-      if (isGasto || isDevolucion) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-      if (isInversion) return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400';
-      return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+    if (isGasto || isDevolucion) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+    if (isInversion) return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400';
+    return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
   };
 
   const getTypeIcon = () => {
-      if (isGasto || isDevolucion) return <ArrowDownCircle className="w-3 h-3"/>;
-      if (isInversion) return <Briefcase className="w-3 h-3"/>;
-      return <ArrowUpCircle className="w-3 h-3"/>;
+    if (isGasto || isDevolucion) return <ArrowDownCircle className="w-3 h-3" />;
+    if (isInversion) return <Briefcase className="w-3 h-3" />;
+    return <ArrowUpCircle className="w-3 h-3" />;
   };
 
   return (
@@ -325,13 +326,13 @@ const MovimientoModal = ({
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 z-10">
               <div className="flex items-center gap-3">
-                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                   {movimiento ? t('movimientos.edit_movimiento') : t('movimientos.new_movimiento')}
-                 </h2>
-                 <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${getTypeColor()}`}>
-                   {getTypeIcon()}
-                   {formData.type === 'INVERSION_RECIBIDA' ? 'Inversión' : formData.type === 'DEVOLUCION_INVERSION' ? 'Devolución' : formData.type.toUpperCase()}
-                 </div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                  {movimiento ? t('movimientos.edit_movimiento') : t('movimientos.new_movimiento')}
+                </h2>
+                <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${getTypeColor()}`}>
+                  {getTypeIcon()}
+                  {formData.type === 'INVERSION_RECIBIDA' ? 'Inversión' : formData.type === 'DEVOLUCION_INVERSION' ? 'Devolución' : formData.type.toUpperCase()}
+                </div>
               </div>
               <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                 <X className="w-6 h-6 text-slate-400" />
@@ -339,285 +340,291 @@ const MovimientoModal = ({
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50 dark:bg-slate-950/50 custom-scrollbar">
-              
+
               {/* Type Selector */}
               <div className="space-y-2">
-                 <Label>Tipo de Movimiento</Label>
-                 <select
-                   className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                   value={formData.type}
-                   onChange={(e) => setFormData({...formData, type: e.target.value})}
-                 >
-                   <option value="ingreso">Ingreso</option>
-                   <option value="gasto">Gasto</option>
-                   <option value="INVERSION_RECIBIDA">Inversión Recibida</option>
-                   <option value="DEVOLUCION_INVERSION">Devolución de Inversión</option>
-                 </select>
+                <Label>Tipo de Movimiento</Label>
+                <select
+                  className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                >
+                  <option value="ingreso">Ingreso</option>
+                  <option value="gasto">Gasto</option>
+                  <option value="INVERSION_RECIBIDA">Inversión Recibida</option>
+                  <option value="DEVOLUCION_INVERSION">Devolución de Inversión</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                    <Label>Proyecto <span className="text-red-500">*</span></Label>
+                <div className="space-y-2">
+                  <Label>Proyecto <span className="text-red-500">*</span></Label>
+                  <select
+                    className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all disabled:opacity-50"
+                    value={formData.projectId}
+                    onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                    disabled={!!initialProjectId}
+                  >
+                    <option value="">Seleccionar Proyecto</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {isGasto && (
+                  <div className="space-y-2">
+                    <Label>Partida</Label>
                     <select
-                      className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all disabled:opacity-50"
-                      value={formData.projectId}
-                      onChange={(e) => setFormData({...formData, projectId: e.target.value})}
-                      disabled={!!initialProjectId}
+                      className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      value={formData.partidaId}
+                      onChange={(e) => setFormData({ ...formData, partidaId: e.target.value })}
+                      disabled={!formData.projectId}
                     >
-                      <option value="">Seleccionar Proyecto</option>
-                      {projects.map(p => (
+                      <option value="">
+                        {partidas.length === 0 && formData.projectId
+                          ? 'Sin partidas disponibles (Gastos Generales)'
+                          : 'Seleccionar Partida (Opcional)'}
+                      </option>
+                      {partidas.map(p => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>
-                 </div>
-                 
-                 {isGasto && (
-                   <div className="space-y-2">
-                      <Label>Partida</Label>
-                      <select
-                        className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        value={formData.partidaId}
-                        onChange={(e) => setFormData({...formData, partidaId: e.target.value})}
-                        disabled={!formData.projectId}
-                      >
-                        <option value="">
-                             {partidas.length === 0 && formData.projectId 
-                               ? 'Sin partidas disponibles (Gastos Generales)' 
-                               : 'Seleccionar Partida (Opcional)'}
-                        </option>
-                        {partidas.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
-                   </div>
-                 )}
+                  </div>
+                )}
 
-                 {isInvestmentType && (
-                    <div className="space-y-2">
-                        <Label>Inversionista <span className="text-red-500">*</span></Label>
-                        <select
-                          className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                          value={formData.inversionistaId}
-                          onChange={(e) => setFormData({...formData, inversionistaId: e.target.value})}
-                        >
-                          <option value="">Seleccionar Inversionista</option>
-                          {investors.map(i => <option key={i.id} value={i.id}>{i.nombre}</option>)}
-                        </select>
-                    </div>
-                 )}
+                {isInvestmentType && (
+                  <div className="space-y-2">
+                    <Label>Inversionista <span className="text-red-500">*</span></Label>
+                    <select
+                      className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={formData.inversionistaId}
+                      onChange={(e) => setFormData({ ...formData, inversionistaId: e.target.value })}
+                    >
+                      <option value="">Seleccionar Inversionista</option>
+                      {investors.map(i => <option key={i.id} value={i.id}>{i.nombre}</option>)}
+                    </select>
+                  </div>
+                )}
 
-                 {!isGasto && !isInvestmentType && (
-                    <div className="space-y-2">
-                       <Label>Cuenta / Destino</Label>
-                       <select
-                         className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm"
-                         value={formData.accountId}
-                         onChange={(e) => setFormData({...formData, accountId: e.target.value})}
-                       >
-                         <option value="">Seleccionar Cuenta</option>
-                         {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                       </select>
-                    </div>
-                 )}
+                {!isGasto && !isInvestmentType && (
+                  <div className="space-y-2">
+                    <Label>Cuenta / Destino</Label>
+                    <select
+                      className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm"
+                      value={formData.accountId}
+                      onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
+                    >
+                      <option value="">Seleccionar Cuenta</option>
+                      {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
-                 <div className="space-y-2">
-                    <Label>{t('common.description')} <span className="text-red-500">*</span></Label>
-                    <textarea
-                      className="w-full min-h-[80px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-y transition-all"
-                      value={formData.description}
-                      onChange={(e) => setFormData({...formData, description: e.target.value})}
-                      placeholder="Descripción del movimiento..."
-                    />
-                 </div>
-                 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                       <Label>{t('common.date')}</Label>
-                       <DatePickerInput
-                         date={formData.date ? new Date(formData.date) : null}
-                         onSelect={(d) => setFormData({...formData, date: d ? d.toISOString().split('T')[0] : ''})}
-                         className="w-full h-11"
-                       />
-                    </div>
-                    
-                    {isGasto && (
-                       <div className="space-y-2">
-                          <Label>Proveedor (Opcional)</Label>
-                          <select
-                            className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={formData.providerId}
-                            onChange={(e) => setFormData({...formData, providerId: e.target.value})}
-                          >
-                            <option value="">Seleccionar Proveedor</option>
-                            {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                          </select>
-                       </div>
-                    )}
-                    
-                    {(isGasto || isDevolucion) && (
-                       <div className="space-y-2">
-                          <Label>Estado</Label>
-                          <select
-                            className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={formData.status}
-                            onChange={(e) => setFormData({...formData, status: e.target.value})}
-                          >
-                            <option value="Pendiente">Pendiente</option>
-                            <option value="Pagado">Pagado</option>
-                            <option value="Cancelado">Cancelado</option>
-                          </select>
-                       </div>
-                    )}
+                <div className="space-y-2">
+                  <Label>{t('common.description')} <span className="text-red-500">*</span></Label>
+                  <textarea
+                    className="w-full min-h-[80px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-y transition-all"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Descripción del movimiento..."
+                  />
+                </div>
 
-                    {(!isGasto && !isDevolucion) && (
-                       <div className="space-y-2">
-                          <Label>Estado</Label>
-                          <select
-                            className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={formData.status}
-                            onChange={(e) => setFormData({...formData, status: e.target.value})}
-                          >
-                            <option value="Pendiente">Pendiente</option>
-                            <option value="Cobrado">Cobrado</option>
-                            <option value="Cancelado">Cancelado</option>
-                          </select>
-                       </div>
-                    )}
-                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>{t('common.date')}</Label>
+
+                    <DatePickerInput
+                      date={formData.date ? new Date(formData.date + 'T12:00:00') : null} // El T12 evita errores de desfase al leer
+                      onSelect={(d) => {
+                        if (!d) return;
+                        // Usamos format de date-fns para obtener el string local real
+                        const formattedDate = format(d, 'yyyy-MM-dd');
+                        setFormData({ ...formData, date: formattedDate });
+                      }}
+                      className="w-full"
+                    />
+
+                  </div>
+
+                  {isGasto && (
+                    <div className="space-y-2">
+                      <Label>Proveedor (Opcional)</Label>
+                      <select
+                        className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={formData.providerId}
+                        onChange={(e) => setFormData({ ...formData, providerId: e.target.value })}
+                      >
+                        <option value="">Seleccionar Proveedor</option>
+                        {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  {(isGasto || isDevolucion) && (
+                    <div className="space-y-2">
+                      <Label>Estado</Label>
+                      <select
+                        className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      >
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Pagado">Pagado</option>
+                        <option value="Cancelado">Cancelado</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {(!isGasto && !isDevolucion) && (
+                    <div className="space-y-2">
+                      <Label>Estado</Label>
+                      <select
+                        className="w-full h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      >
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Cobrado">Cobrado</option>
+                        <option value="Cancelado">Cancelado</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 space-y-6 shadow-sm">
-                 <div className="flex items-center gap-2 mb-2">
-                    <DollarSign className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-bold text-slate-900 dark:text-white">Detalle Económico</h3>
-                 </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-bold text-slate-900 dark:text-white">Detalle Económico</h3>
+                </div>
 
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                       <Label className="text-xs uppercase font-bold text-slate-500">Monto Total (ARS) <span className="text-red-500">*</span></Label>
-                       <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-slate-400 font-bold">$</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={formData.amount_ars}
-                            onChange={(e) => setFormData({...formData, amount_ars: e.target.value})}
-                            placeholder="0.00"
-                            className="pl-8 text-lg font-bold h-12"
-                          />
-                       </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase font-bold text-slate-500">Monto Total (ARS) <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-slate-400 font-bold">$</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.amount_ars}
+                        onChange={(e) => setFormData({ ...formData, amount_ars: e.target.value })}
+                        placeholder="0.00"
+                        className="pl-8 text-lg font-bold h-12"
+                      />
                     </div>
-                    <div className="space-y-2">
-                       <Label className="text-xs uppercase font-bold text-slate-500">Valor USD (ARS/USD)</Label>
-                       <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-slate-400 font-bold">U$</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={formData.fx_rate}
-                            onChange={(e) => setFormData({...formData, fx_rate: e.target.value})}
-                            className="pl-9 h-12"
-                          />
-                       </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase font-bold text-slate-500">Valor USD (ARS/USD)</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-slate-400 font-bold">U$</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.fx_rate}
+                        onChange={(e) => setFormData({ ...formData, fx_rate: e.target.value })}
+                        className="pl-9 h-12"
+                      />
                     </div>
-                    <div className="space-y-2">
-                       <Label className="text-xs uppercase font-bold text-slate-500">Monto (USD)</Label>
-                       <div className="w-full h-12 px-3 flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-sm font-semibold text-slate-600 dark:text-slate-400">
-                          {formatCurrencyUSD(calculated.usd_amount)}
-                       </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase font-bold text-slate-500">Monto (USD)</Label>
+                    <div className="w-full h-12 px-3 flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-sm font-semibold text-slate-600 dark:text-slate-400">
+                      {formatCurrencyUSD(calculated.usd_amount)}
                     </div>
-                 </div>
+                  </div>
+                </div>
 
-                 <div className="h-px bg-slate-100 dark:bg-slate-800 my-2" />
+                <div className="h-px bg-slate-100 dark:bg-slate-800 my-2" />
 
-                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                       <div className="flex items-center gap-2">
-                          <Label htmlFor="vat-toggle" className="text-sm cursor-pointer select-none">IVA Incluido</Label>
-                          <Switch 
-                             id="vat-toggle"
-                             checked={formData.vat_included}
-                             onCheckedChange={(checked) => setFormData({...formData, vat_included: checked})}
-                          />
-                       </div>
-                       <div className="w-24 relative">
-                          <Input
-                             type="number"
-                             value={formData.vat_percent}
-                             onChange={(e) => setFormData({...formData, vat_percent: e.target.value})}
-                             className="h-9 pr-7 text-sm"
-                          />
-                          <Percent className="absolute right-2 top-2.5 w-3 h-3 text-slate-400" />
-                       </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="vat-toggle" className="text-sm cursor-pointer select-none">IVA Incluido</Label>
+                      <Switch
+                        id="vat-toggle"
+                        checked={formData.vat_included}
+                        onCheckedChange={(checked) => setFormData({ ...formData, vat_included: checked })}
+                      />
                     </div>
-                    <div className="text-right">
-                       <span className="text-xs text-slate-500 uppercase font-bold mr-2">Neto:</span>
-                       <span className="font-mono font-medium">{formatCurrencyARS(calculated.net_amount)}</span>
+                    <div className="w-24 relative">
+                      <Input
+                        type="number"
+                        value={formData.vat_percent}
+                        onChange={(e) => setFormData({ ...formData, vat_percent: e.target.value })}
+                        className="h-9 pr-7 text-sm"
+                      />
+                      <Percent className="absolute right-2 top-2.5 w-3 h-3 text-slate-400" />
                     </div>
-                 </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-slate-500 uppercase font-bold mr-2">Neto:</span>
+                    <span className="font-mono font-medium">{formatCurrencyARS(calculated.net_amount)}</span>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label>Comprobante ({t('common.optional')})</Label>
                 {existingFileUrl && !selectedFile ? (
-                   <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
-                      <div className="flex items-center gap-3">
-                         <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
-                            <FileText className="w-5 h-5" />
-                         </div>
-                         <div className="flex flex-col">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Comprobante Adjunto</span>
-                            <a href={existingFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">Ver archivo</a>
-                         </div>
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
+                        <FileText className="w-5 h-5" />
                       </div>
-                      <Button variant="ghost" size="sm" onClick={removeExistingFile} className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
-                         <Trash2 className="w-4 h-4" />
-                      </Button>
-                   </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Comprobante Adjunto</span>
+                        <a href={existingFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">Ver archivo</a>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={removeExistingFile} className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 ) : (
-                  <div 
-                    className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all ${
-                       selectedFile 
-                         ? 'border-green-300 bg-green-50 dark:bg-green-900/10 dark:border-green-800' 
-                         : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900'
-                    }`}
+                  <div
+                    className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all ${selectedFile
+                      ? 'border-green-300 bg-green-50 dark:bg-green-900/10 dark:border-green-800'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900'
+                      }`}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={handleDrop}
                   >
-                     <input
-                       type="file"
-                       ref={fileInputRef}
-                       onChange={handleFileSelect}
-                       className="hidden"
-                       accept=".pdf,.jpg,.jpeg,.png"
-                     />
-                     
-                     {selectedFile ? (
-                        <div className="flex flex-col items-center gap-2">
-                           <div className="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-2">
-                              <FileText className="w-6 h-6" />
-                           </div>
-                           <p className="text-sm font-medium text-green-700 dark:text-green-400">{selectedFile.name}</p>
-                           <p className="text-xs text-slate-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                           <Button variant="ghost" size="sm" onClick={removeFile} className="mt-2 text-red-500 hover:bg-red-50 h-8">
-                              Eliminar selección
-                           </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    />
+
+                    {selectedFile ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-2">
+                          <FileText className="w-6 h-6" />
                         </div>
-                     ) : (
-                        <div className="flex flex-col items-center gap-3 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                           <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center">
-                              <UploadCloud className="w-6 h-6" />
-                           </div>
-                           <div>
-                              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Arrastra un archivo aquí o haz click</p>
-                              <p className="text-xs text-slate-500 mt-1">PDF, JPG, PNG (Max 10MB)</p>
-                           </div>
+                        <p className="text-sm font-medium text-green-700 dark:text-green-400">{selectedFile.name}</p>
+                        <p className="text-xs text-slate-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <Button variant="ghost" size="sm" onClick={removeFile} className="mt-2 text-red-500 hover:bg-red-50 h-8">
+                          Eliminar selección
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center">
+                          <UploadCloud className="w-6 h-6" />
                         </div>
-                     )}
+                        <div>
+                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Arrastra un archivo aquí o haz click</p>
+                          <p className="text-xs text-slate-500 mt-1">PDF, JPG, PNG (Max 10MB)</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

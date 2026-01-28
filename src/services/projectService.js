@@ -268,6 +268,26 @@ export const projectService = {
      return data;
   },
 
+  async updatePartidaBudget(partidaId, monto) {
+    try {
+      const { data, error } = await supabase
+        .from('work_items')
+        .update({ 
+          presupuesto: monto,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', partidaId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error("[projectService] Error updating budget:", error);
+      throw error;
+    }
+  },
+
   // --- Breakdown & KPIs ---
 
   async getPartidaBreakdown(projectId) {
@@ -276,40 +296,32 @@ export const projectService = {
     try {
       const { data: partidas, error } = await supabase
           .from('work_items')
-          .select('id, nombre, presupuesto, coste_asignado, progreso, estado')
+          .select(`
+            id, 
+            nombre, 
+            presupuesto, 
+            coste_asignado, 
+            progreso, 
+            estado,
+            sub_partidas:subpartidas(*) 
+          `)
           .eq('proyecto_id', projectId)
           .order('created_at');
       
       if (error) throw error;
-      if (!partidas || !partidas.length) return [];
+      if (!partidas) return [];
 
-      return partidas.map(p => {
-          const budget = Number(p.presupuesto || 0);
-          const total_gasto = Number(p.coste_asignado || 0);
-          const diferencia = budget - total_gasto;
-          
-          let status_indicator = 'gray';
-
-          if (budget > 0) {
-              const ratio = total_gasto / budget;
-              if (ratio > 1) status_indicator = 'red';
-              else if (ratio > 0.8) status_indicator = 'yellow';
-              else status_indicator = 'green';
-          } else if (total_gasto > 0) {
-              status_indicator = 'gray'; 
-          }
-
-          return {
-              id: p.id,
-              name: p.nombre,
-              budget,
-              total_gasto,
-              diferencia,
-              status_indicator,
-              progress: p.progreso,
-              is_system: false 
-          };
-      });
+      return partidas.map(p => ({
+          id: p.id,
+          name: p.nombre,
+          budget: Number(p.presupuesto || 0),
+          total_gasto: Number(p.coste_asignado || 0),
+          diferencia: Number(p.presupuesto || 0) - Number(p.coste_asignado || 0),
+          progress: p.progreso,
+          estado: p.estado,
+          sub_partidas: p.sub_partidas || [], // Esto evita el error de .map() en el componente
+          is_system: false 
+      }));
     } catch (error) {
       console.error("Error in getPartidaBreakdown:", error);
       return [];
