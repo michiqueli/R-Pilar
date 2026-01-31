@@ -83,7 +83,7 @@ const RankingObras = ({ data = [], loading = false, moneda = 'ARS' }) => {
                 value="bottom" 
                 className="text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm"
               >
-                Bottom 5
+                Peores 5 (Beneficio)  
               </TabsTrigger>
             </TabsList>
 

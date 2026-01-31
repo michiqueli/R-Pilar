@@ -39,6 +39,7 @@
     "filters": "Filtros",
     "applyFilters": "Aplicar Filtros",
     "clearFilters": "Limpiar",
+    "clear": "Limpiar",
     "view": "Ver",
     "print": "Imprimir",
     "loading": "Cargando...",
@@ -224,6 +225,10 @@
     "editProvider": "Editar Proveedor",
     "name": "Nombre",
     "type": "Tipo",
+    "tax_id": "NIF / CUIT",
+    "total_billed": "Total Facturado",
+    "pending_pay": "Pendiente de Pago",
+    "contact": "Contacto",
     "email": "Email",
     "phone": "Teléfono",
     "status": "Estado",
@@ -302,6 +307,7 @@
     "noDocument": "Sin documento",
     "mapTo": "Mapear a:",
     "provider": "Proveedor",
+    "select_provider": "Seleccionar Proveedor",
     "reference": "Referencia",
     "concept": "Concepto",
     "textMapped": "Texto mapeado correctamente",
@@ -309,7 +315,8 @@
     "mappedFields": "Campos mapeados",
     "previousPage": "Anterior",
     "nextPage": "Siguiente",
-    "pageOf": "Página {current} de {total}"
+    "pageOf": "Página {current} de {total}",
+    "select_project": "Seleccionar Proyecto"
   },
   "settings": {
     "title": "Configuración",
@@ -428,7 +435,8 @@
     "ingreso": "Ingreso",
     "gasto": "Gasto",
     "inversion": "Inversión",
-    "devolucion": "Devolución"
+    "devolucion": "Devolución",
+    "proyecto": "Proyecto"
   },
   "status": {
     "active": "Activo",

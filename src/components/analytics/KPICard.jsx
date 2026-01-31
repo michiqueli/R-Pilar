@@ -1,54 +1,61 @@
-
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
-import { formatCurrencyARS, formatCurrencyUSD } from '@/lib/formatUtils';
+import { TrendingUp, TrendingDown, Activity, Wallet } from 'lucide-react';
 import KpiCard from '@/components/ui/KpiCard';
+import { formatCurrencyARS, formatCurrencyUSD } from '@/lib/formatUtils';
 
-const KPICard = ({
-  title,
-  value,
-  subtitle,
-  color = 'blue',
-  currency = 'ARS',
-  onViewComposition,
-  loading = false
-}) => {
-  const format = currency === 'USD' ? formatCurrencyUSD : formatCurrencyARS;
-  const tone = color === 'green' ? 'emerald' : color === 'red' ? 'red' : color === 'purple' ? 'purple' : 'blue';
+const AnalyticsKPICards = ({ kpiData, moneda, loading }) => {
+  const format = moneda === 'USD' ? formatCurrencyUSD : formatCurrencyARS;
+  
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+        {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-slate-100 dark:bg-slate-800 rounded-[32px]" />)}
+      </div>
+    );
+  }
+console.log(kpiData)
+  const { ingresos, egresos, beneficio, saldoTotal } = kpiData;
+  const margen = ingresos > 0 ? ((beneficio / ingresos) * 100).toFixed(1) : 0;
 
   return (
-    <KpiCard
-      title={title}
-      value={loading ? '...' : format(value)}
-      description={subtitle}
-      tone={tone}
-      showBar
-    >
-      {loading ? (
-        <div className="h-8 w-32 bg-slate-100 dark:bg-slate-800 animate-pulse rounded" />
-      ) : (
-        <>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-            {format(value)}
-          </div>
-          {subtitle && (
-            <p className="text-xs text-slate-500">{subtitle}</p>
-          )}
-        </>
-      )}
-      {onViewComposition && !loading && (
-        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center">
-          <button
-            onClick={onViewComposition}
-            className="group flex items-center text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-          >
-            Ver composición
-            <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" />
-          </button>
-        </div>
-      )}
-    </KpiCard>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <KpiCard
+        title="Ingresos Totales"
+        value={format(ingresos)}
+        description="Cobrado en el periodo"
+        icon={TrendingUp}
+        tone="emerald"
+        showBar
+      />
+
+      <KpiCard
+        title="Egresos Totales"
+        value={format(egresos)}
+        description="Pagado en el periodo"
+        icon={TrendingDown}
+        tone="red"
+        showBar
+      />
+
+      <KpiCard
+        title="Beneficio Neto"
+        value={format(beneficio)}
+        secondaryValue={`Margen: ${margen}%`}
+        icon={Activity}
+        tone="blue"
+        showBar
+      />
+
+      <KpiCard
+        title="Saldo en Caja"
+        value={format(saldoTotal)}
+        description="Disponibilidad actual real"
+        icon={Wallet}
+        tone="purple"
+        showBar
+      />
+    </div>
   );
 };
 
-export default KPICard;
+export default AnalyticsKPICards;

@@ -1,11 +1,11 @@
-
 import React from 'react';
-import { Edit2, Trash2, Wallet, CreditCard, Banknote } from 'lucide-react';
+import { Edit2, Trash2, Wallet, CreditCard, Banknote, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { formatCurrencyARS } from '@/lib/formatUtils';
 
 const CuentasCards = ({ cuentas, onEdit, onDelete, loading }) => {
   const { t } = useTheme();
@@ -14,40 +14,32 @@ const CuentasCards = ({ cuentas, onEdit, onDelete, loading }) => {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-         {[1, 2, 3].map(i => (
-           <div key={i} className="h-48 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse"></div>
-         ))}
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-52 rounded-[32px] bg-slate-100 dark:bg-slate-800 animate-pulse"></div>
+        ))}
       </div>
     );
   }
 
   if (!cuentas?.length) {
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center">
-        <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-2xl">💳</span>
+      <div className="bg-white dark:bg-slate-900 rounded-[32px] border-2 border-dashed border-slate-200 dark:border-slate-800 p-16 text-center">
+        <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Wallet className="w-10 h-10 text-blue-500" />
         </div>
-        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">{t('cuentas.noCuentas')}</h3>
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('cuentas.noCuentas')}</h3>
         <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-          {t('cuentas.noCuentasDesc', 'Comienza agregando tu primera cuenta.')}
+          {t('cuentas.noCuentasDesc', 'Comienza agregando tu primera cuenta bancaria o caja.')}
         </p>
       </div>
     );
   }
 
   const getIcon = (tipo) => {
-     switch(tipo?.toLowerCase()) {
-        case 'banco': return CreditCard;
-        case 'efectivo': return Banknote;
-        default: return Wallet;
-     }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'activa': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-      case 'inactiva': return 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400';
-      default: return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+    switch(tipo?.toLowerCase()) {
+      case 'banco': return CreditCard;
+      case 'efectivo': return Banknote;
+      default: return Wallet;
     }
   };
 
@@ -55,62 +47,79 @@ const CuentasCards = ({ cuentas, onEdit, onDelete, loading }) => {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {cuentas.map((cuenta, index) => {
         const Icon = getIcon(cuenta.tipo);
+        const esPositivo = (cuenta.saldo_calculado || 0) >= 0;
+
         return (
           <motion.div
             key={cuenta.id}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
             onClick={() => navigate(`/cuentas/${cuenta.id}`)}
-            className="group relative bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200 flex flex-col h-full cursor-pointer"
+            className="group relative bg-white dark:bg-slate-900 rounded-[32px] p-7 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-blue-500/30 transition-all duration-300 flex flex-col h-full cursor-pointer overflow-hidden"
           >
-            <div className="flex justify-between items-start mb-4">
-               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl">
-                  <Icon className="w-6 h-6" />
-               </div>
-               <span className={cn(
-                  "px-2.5 py-0.5 rounded-full text-xs font-medium capitalize",
-                  getStatusColor(cuenta.estado)
-                )}>
-                  {cuenta.estado || 'activa'}
-               </span>
+            {/* Indicador de Salud Financiera sutil al fondo */}
+            <div className={cn(
+              "absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-[0.03] transition-transform group-hover:scale-125",
+              esPositivo ? "bg-emerald-500" : "bg-red-500"
+            )} />
+
+            <div className="flex justify-between items-start mb-6">
+              <div className={cn(
+                "p-3 rounded-2xl shadow-sm transition-colors",
+                esPositivo ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20" : "bg-red-50 text-red-600 dark:bg-red-900/20"
+              )}>
+                <Icon className="w-6 h-6" />
+              </div>
+              <div className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border",
+                esPositivo 
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800" 
+                  : "bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:border-red-800"
+              )}>
+                {esPositivo ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                {esPositivo ? 'Saneada' : 'En Deuda'}
+              </div>
             </div>
 
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
-              {cuenta.titulo}
-            </h3>
-            
-            <div className="flex items-center gap-2 mb-4 text-sm text-slate-500 dark:text-slate-400">
-               <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md font-medium text-xs">
-                 {cuenta.tipo}
-               </span>
+            <div className="mb-6">
+              <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mb-1 group-hover:text-blue-600 transition-colors">
+                {cuenta.titulo}
+              </h3>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {cuenta.tipo}
+              </p>
             </div>
 
-            {cuenta.nota && (
-               <p className="text-sm text-slate-400 line-clamp-2 mb-4 h-10">
-                  {cuenta.nota}
-               </p>
-            )}
+            {/* Saldo Calculado - La parte más importante */}
+            <div className="mt-auto pt-4 border-t border-slate-50 dark:border-slate-800">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Saldo Disponible</p>
+              <h4 className={cn(
+                "text-2xl font-mono font-bold tracking-tighter",
+                esPositivo ? "text-slate-900 dark:text-white" : "text-red-600 dark:text-red-400"
+              )}>
+                {formatCurrencyARS(cuenta.saldo_calculado || 0)}
+              </h4>
+            </div>
 
-            <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+            {/* Acciones flotantes al hacer hover */}
+            <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
                <Button
-                 variant="ghost"
-                 size="sm"
-                 onClick={(e) => { e.stopPropagation(); onEdit(cuenta); }}
-                 className="h-8 px-3 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-               >
-                 <Edit2 className="w-4 h-4 mr-1.5" />
-                 {t('common.edit')}
-               </Button>
-               <Button
-                 variant="ghost"
-                 size="sm"
-                 onClick={(e) => { e.stopPropagation(); onDelete(cuenta); }}
-                 className="h-8 px-3 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-               >
-                 <Trash2 className="w-4 h-4 mr-1.5" />
-                 {t('common.delete')}
-               </Button>
+                  variant="ghost"
+                  size="iconSm"
+                  onClick={(e) => { e.stopPropagation(); onEdit(cuenta); }}
+                  className="rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 hover:text-blue-600 shadow-sm"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="iconSm"
+                  onClick={(e) => { e.stopPropagation(); onDelete(cuenta); }}
+                  className="rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 hover:text-red-600 shadow-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
             </div>
           </motion.div>
         );

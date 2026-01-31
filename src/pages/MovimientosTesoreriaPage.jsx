@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion'; // Añadido para consistencia
 import PageHeader from '@/components/layout/PageHeader';
 import CarouselMovimientos from '@/components/CarouselMovimientos';
 import MovimientosTesoreriaTable from '@/components/movimientos/MovimientosTesoreriaTable';
 import ViewMovementModal from '@/components/modals/ViewMovementModal';
 import DeleteMovementModal from '@/components/modals/DeleteMovementModal';
-import EditMovementModal from '@/components/modals/EditMovementModal';
 import DuplicateMovementModal from '@/components/modals/DuplicateMovementModal';
 import GraficoLiquidezMejorado from '@/components/GraficoLiquidezMejorado';
 
 // UI e Iconos
 import KpiCard from '@/components/ui/KpiCard';
-import { Clock, Wallet, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Clock, Wallet } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrencyARS } from '@/lib/formatUtils';
 
@@ -44,7 +44,7 @@ const MovimientosTesoreriaPage = () => {
   
   const [tableFilters, setTableFilters] = useState({});
   const [modalState, setModalState] = useState({
-    view: false, delete: false, edit: false, duplicate: false, selectedItem: null
+    view: false, delete: false, duplicate: false, selectedItem: null
   });
 
   const handleModoChange = (newMode) => {
@@ -134,105 +134,107 @@ const MovimientosTesoreriaPage = () => {
      }
   };
 
-  // Cálculo de totales para las tarjetas
   const totalPendienteMonto = pendientesConfirmacion.reduce((acc, curr) => acc + Number(curr.monto_ars || 0), 0);
   const totalSaldoCuentas = estadoCuentas.reduce((acc, curr) => acc + Number(curr.saldo_actual || 0), 0);
   const cuentasEnRiesgo = estadoCuentas.filter(c => c.en_riesgo).length;
 
   return (
-    <div className="flex flex-col h-full space-y-6 pb-10">
-      <PageHeader 
-        title="Movimientos y Tesorería" 
-        description="Gestión financiera, proyección de liquidez y control de cuentas."
-      />
+    <div className="min-h-screen p-6 md:p-8 bg-slate-50/50 dark:bg-[#111827] transition-colors duration-200 font-sans">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-7xl mx-auto space-y-8"
+      >
+        <PageHeader 
+          title="Movimientos y Tesorería" 
+          description="Gestión financiera, proyección de liquidez y control de cuentas."
+        />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Tarjeta 1: Proximos Pagos (Carousel) */}
-          <div className="h-48">
-            <CarouselMovimientos 
-              items={proximosPagos} 
-              titulo="Próximos Pagos" 
-              tipo="PAGO"
-              onViewAll={() => setTableFilters({ tipo: 'GASTO' })}
-              onItemClick={(item) => handleModal('view', item)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="h-48">
+              <CarouselMovimientos 
+                items={proximosPagos} 
+                titulo="Próximos Pagos" 
+                tipo="PAGO"
+                onViewAll={() => setTableFilters({ tipo: 'GASTO' })}
+                onItemClick={(item) => handleModal('view', item)}
+              />
+            </div>
+            
+            <div className="h-48">
+              <CarouselMovimientos 
+                items={proximosCobros} 
+                titulo="Próximos Cobros" 
+                tipo="COBRO"
+                onViewAll={() => setTableFilters({ tipo: 'INGRESO' })}
+                onItemClick={(item) => handleModal('view', item)}
+              />
+            </div>
+
+            <div className="h-48">
+              <KpiCard
+                title="Estado de Cuentas"
+                value={formatCurrencyARS(totalSaldoCuentas)}
+                icon={Wallet}
+                tone={cuentasEnRiesgo > 0 ? "amber" : "blue"}
+                secondaryValue={`${estadoCuentas.length} cuentas activas`}
+                description={cuentasEnRiesgo > 0 ? `${cuentasEnRiesgo} cuentas con riesgo` : "Saldos estables"}
+                showBar
+                onClick={() => {
+                  setSoloEnRiesgo(true);
+                  document.getElementById('liquidity-chart-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              />
+            </div>
+
+            <div className="h-48">
+              <KpiCard
+                title="Pendientes"
+                value={pendientesConfirmacion.length.toString()}
+                icon={Clock}
+                tone="amber"
+                secondaryValue={formatCurrencyARS(totalPendienteMonto)}
+                description="Esperando confirmación"
+                showBar
+                onClick={() => {
+                  setTableFilters({ estado: 'PENDIENTE' });
+                  document.getElementById('movements-table-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              />
+            </div>
+        </div>
+
+        <div id="liquidity-chart-section">
+            <GraficoLiquidezMejorado 
+              datos={datosLiquidez}
+              cuentas={cuentasLiquidez}
+              horizonte={horizonte}
+              onHorizonteChange={setHorizonte}
+              soloEnRiesgo={soloEnRiesgo}
+              onSoloEnRiesgoChange={setSoloEnRiesgo}
+              resumen={resumenRiesgo}
+              modo={graficoModo}
+              onModoChange={handleModoChange}
             />
-          </div>
-          
-          {/* Tarjeta 2: Proximos Cobros (Carousel) */}
-          <div className="h-48">
-            <CarouselMovimientos 
-              items={proximosCobros} 
-              titulo="Próximos Cobros" 
-              tipo="COBRO"
-              onViewAll={() => setTableFilters({ tipo: 'INGRESO' })}
-              onItemClick={(item) => handleModal('view', item)}
+        </div>
+
+        <div id="movements-table-section" className="space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Listado Global de Movimientos</h3>
+            <MovimientosTesoreriaTable 
+              movimientos={todosMovimientos}
+              loading={loading}
+              filters={tableFilters}
+              onFilterChange={setTableFilters}
+              onSearch={(term) => setTableFilters(prev => ({ ...prev, search: term }))}
+              onView={(item) => handleModal('view', item)}
+              onEdit={(item) => navigate(`/movements/new?id=${item.id}`)} 
+              onDelete={(item) => handleModal('delete', item)}
+              onDuplicate={(item) => handleModal('duplicate', item)}
+              onNew={() => navigate('/movements/new')}
+              onRefresh={handleRefresh}
             />
-          </div>
-
-          {/* Tarjeta 3: Estado de Cuentas (Refactorizado a KpiCard) */}
-          <div className="h-48">
-            <KpiCard
-              title="Estado de Cuentas"
-              value={formatCurrencyARS(totalSaldoCuentas)}
-              icon={Wallet}
-              tone={cuentasEnRiesgo > 0 ? "amber" : "blue"}
-              secondaryValue={`${estadoCuentas.length} cuentas activas`}
-              description={cuentasEnRiesgo > 0 ? `${cuentasEnRiesgo} cuentas con riesgo de saldo` : "Saldos proyectados estables"}
-              showBar
-              onClick={() => {
-                setSoloEnRiesgo(true);
-                document.getElementById('liquidity-chart-section')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            />
-          </div>
-
-          {/* Tarjeta 4: Pendientes (Refactorizado a KpiCard) */}
-          <div className="h-48">
-            <KpiCard
-              title="Pendientes"
-              value={pendientesConfirmacion.length.toString()}
-              icon={Clock}
-              tone="amber"
-              secondaryValue={formatCurrencyARS(totalPendienteMonto)}
-              description="Movimientos esperando confirmación"
-              showBar
-              onClick={() => {
-                setTableFilters({ estado: 'PENDIENTE' });
-                document.getElementById('movements-table-section')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            />
-          </div>
-      </div>
-
-      <div id="liquidity-chart-section">
-          <GraficoLiquidezMejorado 
-            datos={datosLiquidez}
-            cuentas={cuentasLiquidez}
-            horizonte={horizonte}
-            onHorizonteChange={setHorizonte}
-            soloEnRiesgo={soloEnRiesgo}
-            onSoloEnRiesgoChange={setSoloEnRiesgo}
-            resumen={resumenRiesgo}
-            modo={graficoModo}
-            onModoChange={handleModoChange}
-          />
-      </div>
-
-      <div id="movements-table-section">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Listado Global de Movimientos</h3>
-          <MovimientosTesoreriaTable 
-            movimientos={todosMovimientos}
-            loading={loading}
-            filters={tableFilters}
-            onFilterChange={setTableFilters}
-            onSearch={(term) => setTableFilters(prev => ({ ...prev, search: term }))}
-            onView={(item) => handleModal('view', item)}
-            onEdit={(item) => handleModal('edit', item)} 
-            onDelete={(item) => handleModal('delete', item)}
-            onDuplicate={(item) => handleModal('duplicate', item)}
-            onNew={() => navigate('/movements/new')}
-          />
-      </div>
+        </div>
+      </motion.div>
 
       {/* Modals */}
       <ViewMovementModal 
@@ -241,13 +243,6 @@ const MovimientosTesoreriaPage = () => {
         movement={modalState.selectedItem}
       />
       
-      <EditMovementModal
-        isOpen={modalState.edit}
-        onClose={() => handleModal('edit', null, false)}
-        movement={modalState.selectedItem}
-        onSave={handleRefresh}
-      />
-
       <DuplicateMovementModal
         isOpen={modalState.duplicate}
         onClose={() => handleModal('duplicate', null, false)}

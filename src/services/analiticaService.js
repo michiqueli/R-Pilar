@@ -1,86 +1,84 @@
-
 import { supabase } from '@/lib/customSupabaseClient';
 
 export const analiticaService = {
-  
+
   /**
-   * Helper to build date range filter
-   */
+    * Helper para construir el rango de fechas corregido
+    */
   getDateRange(periodo, year, month) {
     let startDate, endDate;
-    
     if (periodo === 'mes') {
       const y = parseInt(year);
-      const m = parseInt(month) - 1; // 0-11
-      startDate = new Date(y, m, 1).toISOString();
-      // Last day of month
-      endDate = new Date(y, m + 1, 0, 23, 59, 59).toISOString();
+      const m = parseInt(month);
+      // Formato YYYY-MM-DD para evitar problemas de zona horaria en el filtro
+      startDate = `${y}-${m.toString().padStart(2, '0')}-01`;
+      endDate = `${y}-${m.toString().padStart(2, '0')}-31`; // Supabase lte corregirá el fin de mes
     } else {
-      // Annual
-      startDate = `${year}-01-01T00:00:00`;
-      endDate = `${year}-12-31T23:59:59`;
+      startDate = `${year}-01-01`;
+      endDate = `${year}-12-31`;
     }
     return { startDate, endDate };
   },
 
-  /**
-   * 1. KPIs Generales (Ingresos, Egresos, Beneficio, Saldo)
-   */
   async getKPIs(periodo, year, month, moneda) {
-    console.log('Fetching KPIs...', { periodo, year, month, moneda });
     const { startDate, endDate } = this.getDateRange(periodo, year, month);
-    
+
     const { data, error } = await supabase
       .from('inversiones')
       .select('tipo, monto_ars, monto_usd, estado')
       .gte('fecha', startDate)
       .lte('fecha', endDate)
-      .eq('estado', 'CONFIRMADO');
+      .eq('is_deleted', false);
 
-    if (error) {
-      console.error('Error fetching KPIs:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     let ingresos = 0;
     let egresos = 0;
 
     data.forEach(m => {
-      const monto = moneda === 'USD' ? (m.monto_usd || 0) : (m.monto_ars || 0);
-      
-      if (['INGRESO', 'COBRO'].includes(m.tipo)) {
-        ingresos += monto;
-      } else if (['GASTO', 'PAGO', 'INVERSION'].includes(m.tipo)) {
-        egresos += monto;
+      // Normalizamos el estado y el tipo (quitamos espacios y pasamos a MAYÚSCULAS)
+      const estado = m.estado?.toString().trim().toUpperCase();
+      const tipo = m.tipo?.toString().trim().toUpperCase();
+
+      // Debug para ver qué tipos están llegando realmente si sigue en cero
+      // console.log(`Registro: Tipo=${tipo}, Estado=${estado}`);
+
+      // Solo procesamos lo confirmado
+      if (estado === 'CONFIRMADO' || estado === 'PAGADO' || estado === 'COBRADO' || estado === 'APPROVED') {
+
+        const monto = moneda === 'USD' ? (Number(m.monto_usd) || 0) : (Number(m.monto_ars) || 0);
+
+        // Lista expandida de posibles nombres de tipos
+        const esIngreso = ['INGRESO', 'COBRO', 'INVERSION', 'INVERSION_RECIBIDA', 'CAPITAL'].includes(tipo);
+        const esGasto = ['GASTO', 'PAGO', 'DEVOLUCION_INVERSION', 'DEVOLUCION', 'EGRESO', 'COMPRA'].includes(tipo);
+
+        if (esIngreso) {
+          ingresos += monto;
+        } else if (esGasto) {
+          egresos += monto;
+        }
       }
     });
-
-    const beneficio = ingresos - egresos;
-    
-    // Calculate total balance separately as it is a snapshot
-    const saldoTotal = await this.getSaldoTotal(moneda);
 
     return {
       ingresos,
       egresos,
-      beneficio,
-      saldoTotal
+      beneficio: ingresos - egresos,
+      saldoTotal: await this.getSaldoTotal(moneda)
     };
   },
 
   /**
-   * 2. Ingresos por Proyecto
+   * 2. Ingresos por Proyecto (Para el Modal de Composición)
    */
   async getIngresosPorProyecto(periodo, year, month, moneda) {
     const { startDate, endDate } = this.getDateRange(periodo, year, month);
-
     const { data, error } = await supabase
       .from('inversiones')
-      .select(`
-        monto_ars, monto_usd, proyecto_id,
-        projects:proyecto_id (name)
-      `)
-      .in('tipo', ['INGRESO', 'COBRO'])
+      .select(`monto_ars, monto_usd, proyecto_id, projects:proyecto_id (name)`)
+      .in('tipo', ['INGRESO', 'COBRO', 'INVERSION'])
+      .eq('estado', 'CONFIRMADO')
+      .eq('is_deleted', false)
       .gte('fecha', startDate)
       .lte('fecha', endDate)
       .not('proyecto_id', 'is', null);
@@ -89,36 +87,31 @@ export const analiticaService = {
 
     const agrupado = {};
     let total = 0;
-
     data.forEach(d => {
       const monto = moneda === 'USD' ? (d.monto_usd || 0) : (d.monto_ars || 0);
       const nombre = d.projects?.name || 'Sin Nombre';
-      
-      if (!agrupado[nombre]) agrupado[nombre] = 0;
-      agrupado[nombre] += monto;
+      agrupado[nombre] = (agrupado[nombre] || 0) + monto;
       total += monto;
     });
 
-    const resultado = Object.entries(agrupado)
+    const datos = Object.entries(agrupado)
       .map(([nombre, monto]) => ({ nombre, monto }))
       .sort((a, b) => b.monto - a.monto);
 
-    return { datos: resultado, total };
+    return { datos, total };
   },
 
   /**
-   * 3. Egresos por Proyecto
+   * 3. Egresos por Proyecto (Para el Modal de Composición)
    */
   async getEgresosPorProyecto(periodo, year, month, moneda) {
     const { startDate, endDate } = this.getDateRange(periodo, year, month);
-
     const { data, error } = await supabase
       .from('inversiones')
-      .select(`
-        monto_ars, monto_usd, proyecto_id,
-        projects:proyecto_id (name)
-      `)
-      .in('tipo', ['GASTO', 'PAGO', 'INVERSION'])
+      .select(`monto_ars, monto_usd, proyecto_id, projects:proyecto_id (name)`)
+      .in('tipo', ['GASTO', 'PAGO', 'DEVOLUCION_INVERSION', 'DEVOLUCION'])
+      .eq('estado', 'CONFIRMADO')
+      .eq('is_deleted', false)
       .gte('fecha', startDate)
       .lte('fecha', endDate)
       .not('proyecto_id', 'is', null);
@@ -127,63 +120,52 @@ export const analiticaService = {
 
     const agrupado = {};
     let total = 0;
-
     data.forEach(d => {
       const monto = moneda === 'USD' ? (d.monto_usd || 0) : (d.monto_ars || 0);
       const nombre = d.projects?.name || 'Sin Nombre';
-      
-      if (!agrupado[nombre]) agrupado[nombre] = 0;
-      agrupado[nombre] += monto;
+      agrupado[nombre] = (agrupado[nombre] || 0) + monto;
       total += monto;
     });
 
-    const resultado = Object.entries(agrupado)
+    const datos = Object.entries(agrupado)
       .map(([nombre, monto]) => ({ nombre, monto }))
       .sort((a, b) => b.monto - a.monto);
 
-    return { datos: resultado, total };
+    return { datos, total };
   },
 
   /**
-   * 4. Ingresos vs Egresos (Chart Data)
+   * 4. Ingresos vs Egresos (Chart Data) - CORREGIDA
    */
   async getIngresosVsEgresos(periodo, year, month, moneda) {
     const { startDate, endDate } = this.getDateRange(periodo, year, month);
-    
     const { data, error } = await supabase
       .from('inversiones')
       .select('fecha, tipo, monto_ars, monto_usd')
       .gte('fecha', startDate)
       .lte('fecha', endDate)
       .eq('estado', 'CONFIRMADO')
+      .eq('is_deleted', false)
       .order('fecha');
 
     if (error) throw error;
 
     const grouped = {};
-    
     data.forEach(d => {
       const dateObj = new Date(d.fecha);
-      let key;
-      let label;
-
-      if (periodo === 'anio') {
-        key = dateObj.getMonth(); 
-        label = dateObj.toLocaleString('es-ES', { month: 'short' });
-      } else {
-        key = dateObj.getDate();
-        label = `${key}/${dateObj.getMonth() + 1}`;
-      }
+      const key = periodo === 'anio' ? dateObj.getMonth() : dateObj.getDate();
+      const label = periodo === 'anio'
+        ? dateObj.toLocaleString('es-ES', { month: 'short' })
+        : `${key}/${dateObj.getMonth() + 1}`;
 
       if (!grouped[key]) {
         grouped[key] = { name: label, ingresos: 0, egresos: 0, order: key };
       }
 
       const monto = moneda === 'USD' ? (d.monto_usd || 0) : (d.monto_ars || 0);
-
-      if (['INGRESO', 'COBRO'].includes(d.tipo)) {
+      if (['INGRESO', 'COBRO', 'INVERSION'].includes(d.tipo)) {
         grouped[key].ingresos += monto;
-      } else if (['GASTO', 'PAGO', 'INVERSION'].includes(d.tipo)) {
+      } else {
         grouped[key].egresos += monto;
       }
     });
@@ -192,41 +174,64 @@ export const analiticaService = {
   },
 
   /**
-   * 5. Beneficio por Obra (Legacy - can use getTopBottomObras instead)
+   * 5. Top Bottom Obras (Ranking)
    */
-  async getBeneficioPorObra(periodo, year, month, moneda) {
-    return (await this.getTopBottomObras(periodo, year, month, moneda)).sort((a,b) => b.beneficio - a.beneficio);
-  },
-
-  /**
-   * 6. Top Proveedores
-   */
-  async getTopProveedores(periodo, year, month, moneda) {
+  async getTopBottomObras(periodo, year, month, moneda) {
     const { startDate, endDate } = this.getDateRange(periodo, year, month);
-
     const { data, error } = await supabase
       .from('inversiones')
-      .select(`
-        monto_ars, monto_usd, proveedor_id,
-        providers:proveedor_id (name)
-      `)
-      .in('tipo', ['GASTO', 'PAGO'])
+      .select(`tipo, monto_ars, monto_usd, proyecto_id, projects:proyecto_id (name)`)
       .gte('fecha', startDate)
       .lte('fecha', endDate)
       .eq('estado', 'CONFIRMADO')
+      .eq('is_deleted', false)
+      .not('proyecto_id', 'is', null);
+
+    if (error) throw error;
+
+    const projectMap = {};
+    data.forEach(d => {
+      const pid = d.proyecto_id;
+      const monto = moneda === 'USD' ? (d.monto_usd || 0) : (d.monto_ars || 0);
+      if (!projectMap[pid]) {
+        projectMap[pid] = { id: pid, name: d.projects?.name || 'Desconocido', ingresos: 0, egresos: 0 };
+      }
+      if (['INGRESO', 'COBRO', 'INVERSION'].includes(d.tipo)) {
+        projectMap[pid].ingresos += monto;
+      } else {
+        projectMap[pid].egresos += monto;
+      }
+    });
+
+    return Object.values(projectMap).map(p => ({
+      ...p,
+      beneficio: p.ingresos - p.egresos,
+      margen: p.ingresos > 0 ? ((p.ingresos - p.egresos) / p.ingresos) * 100 : -100
+    })).sort((a, b) => b.beneficio - a.beneficio);
+  },
+
+  /**
+   * 6. Top Proveedores - CORREGIDA
+   */
+  async getTopProveedores(periodo, year, month, moneda) {
+    const { startDate, endDate } = this.getDateRange(periodo, year, month);
+    const { data, error } = await supabase
+      .from('inversiones')
+      .select(`monto_ars, monto_usd, proveedor_id, providers:proveedor_id (name)`)
+      .in('tipo', ['GASTO', 'PAGO'])
+      .eq('estado', 'CONFIRMADO')
+      .eq('is_deleted', false)
+      .gte('fecha', startDate)
+      .lte('fecha', endDate)
       .not('proveedor_id', 'is', null);
 
     if (error) throw error;
 
     const agrupado = {};
-
     data.forEach(d => {
       const monto = moneda === 'USD' ? (d.monto_usd || 0) : (d.monto_ars || 0);
       const nombre = d.providers?.name || 'Sin Nombre';
-
-      if (!agrupado[nombre]) {
-        agrupado[nombre] = { nombre, monto: 0, cantidad: 0 };
-      }
+      if (!agrupado[nombre]) agrupado[nombre] = { nombre, monto: 0, cantidad: 0 };
       agrupado[nombre].monto += monto;
       agrupado[nombre].cantidad += 1;
     });
@@ -235,161 +240,74 @@ export const analiticaService = {
   },
 
   /**
-   * 7. Top Clientes
+   * 7. Top Clientes - CORREGIDA
    */
   async getTopClientes(periodo, year, month, moneda) {
     const { startDate, endDate } = this.getDateRange(periodo, year, month);
-
     const { data, error } = await supabase
       .from('inversiones')
-      .select(`
-        tipo, monto_ars, monto_usd, proyecto_id
-      `)
-      .in('tipo', ['INGRESO', 'COBRO'])
-      .gte('fecha', startDate)
-      .lte('fecha', endDate)
+      .select(`proyecto_id, monto_ars, monto_usd, tipo`)
+      .in('tipo', ['INGRESO', 'COBRO', 'INVERSION'])
       .eq('estado', 'CONFIRMADO')
-      .not('proyecto_id', 'is', null);
+      .eq('is_deleted', false)
+      .gte('fecha', startDate)
+      .lte('fecha', endDate);
 
     if (error) throw error;
     if (!data.length) return [];
 
+    // Necesitamos saber de quién es cada proyecto
     const projectIds = [...new Set(data.map(d => d.proyecto_id))];
-    
     const { data: projectsData } = await supabase
       .from('projects')
-      .select('id, client_id, clients:client_id(name)')
+      .select('id, clients:client_id(name)')
       .in('id', projectIds);
-    
-    const projectMap = {};
+
+    const clientMap = {};
     projectsData?.forEach(p => {
-      projectMap[p.id] = p.clients?.name || 'Sin Cliente';
+      clientMap[p.id] = p.clients?.name || 'Sin Cliente';
     });
 
     const agrupado = {};
-
     data.forEach(d => {
-      const clientName = projectMap[d.proyecto_id];
+      const clientName = clientMap[d.proyecto_id];
       if (!clientName) return;
-
       const monto = moneda === 'USD' ? (d.monto_usd || 0) : (d.monto_ars || 0);
-
-      if (!agrupado[clientName]) {
-        agrupado[clientName] = { nombre: clientName, beneficio: 0, nroProyectos: new Set() };
-      }
+      if (!agrupado[clientName]) agrupado[clientName] = { nombre: clientName, beneficio: 0, proyectos: new Set() };
       agrupado[clientName].beneficio += monto;
-      agrupado[clientName].nroProyectos.add(d.proyecto_id);
+      agrupado[clientName].proyectos.add(d.proyecto_id);
     });
 
-    return Object.values(agrupado).map(item => ({
-      ...item,
-      nroProyectos: item.nroProyectos.size
+    return Object.values(agrupado).map(c => ({
+      nombre: c.nombre,
+      beneficio: c.beneficio,
+      nroProyectos: c.proyectos.size
     })).sort((a, b) => b.beneficio - a.beneficio).slice(0, 5);
   },
 
-  /**
-   * 8. Saldo Total (Real Balance from Active Cuentas)
-   * Calculates balance by summing all historical confirmed movements for active accounts.
-   */
   async getSaldoTotal(moneda) {
-    console.log('Calculating real saldo for:', moneda);
-    
-    // 1. Get all active accounts
-    const { data: cuentas, error: cuentasError } = await supabase
-      .from('cuentas')
-      .select('id, moneda')
-      .eq('is_deleted', false)
-      .eq('estado', 'ACTIVA'); // Assuming 'ACTIVA' is the status for active accounts
-
-    if (cuentasError) {
-      console.error('Error fetching cuentas:', cuentasError);
-      throw cuentasError;
-    }
-
-    if (!cuentas || cuentas.length === 0) return 0;
-
-    const cuentaIds = cuentas.map(c => c.id);
-
-    // 2. Fetch ALL confirmed movements for these accounts (no date filter)
-    const { data: movimientos, error: movError } = await supabase
-      .from('inversiones')
-      .select('cuenta_id, tipo, monto_ars, monto_usd')
-      .in('cuenta_id', cuentaIds)
-      .eq('estado', 'CONFIRMADO');
-
-    if (movError) {
-      console.error('Error fetching movements for balance:', movError);
-      throw movError;
-    }
-
-    let saldoTotal = 0;
-
-    // 3. Sum up based on currency filter
-    movimientos.forEach(m => {
-      // Determine movement amount based on selected view currency
-      // If filtering by specific currency (e.g. USD), we only sum USD amounts
-      // If filtering by ARS, sum ARS amounts
-      // If 'TODAS', it's tricky, but usually means sum of base currency equivalents. 
-      // For now, we follow the requested pattern:
-      
-      const monto = moneda === 'USD' ? (m.monto_usd || 0) : (m.monto_ars || 0);
-      
-      // Add or Subtract based on type
-      if (['INGRESO', 'COBRO', 'DEVOLUCION'].includes(m.tipo)) {
-        saldoTotal += monto;
-      } else {
-        saldoTotal -= monto;
-      }
-    });
-
-    return saldoTotal;
-  },
-
-  /**
-   * New: Get Top and Bottom Projects by Benefit
-   */
-  async getTopBottomObras(periodo, year, month, moneda) {
-    const { startDate, endDate } = this.getDateRange(periodo, year, month);
-
     const { data, error } = await supabase
       .from('inversiones')
-      .select(`
-        tipo, monto_ars, monto_usd, proyecto_id,
-        projects:proyecto_id (name)
-      `)
-      .gte('fecha', startDate)
-      .lte('fecha', endDate)
-      .eq('estado', 'CONFIRMADO')
-      .not('proyecto_id', 'is', null);
+      .select('tipo, monto_ars, monto_usd, estado')
+      .eq('is_deleted', false);
 
     if (error) throw error;
 
-    const projectMap = {};
+    return data.reduce((acc, m) => {
+      const estado = m.estado?.toString().trim().toUpperCase();
+      const tipo = m.tipo?.toString().trim().toUpperCase();
 
-    data.forEach(d => {
-      const pid = d.proyecto_id;
-      const pname = d.projects?.name || 'Desconocido';
-      const monto = moneda === 'USD' ? (d.monto_usd || 0) : (d.monto_ars || 0);
+      // Solo saldo de lo que ya pasó realmente
+      if (estado === 'CONFIRMADO' || estado === 'PAGADO' || estado === 'COBRADO' || estado === 'APPROVED') {
+        const monto = moneda === 'USD' ? (Number(m.monto_usd) || 0) : (Number(m.monto_ars) || 0);
 
-      if (!projectMap[pid]) {
-        projectMap[pid] = { id: pid, name: pname, ingresos: 0, egresos: 0, beneficio: 0 };
+        const esSuma = ['INGRESO', 'COBRO', 'INVERSION', 'INVERSION_RECIBIDA', 'CAPITAL'].includes(tipo);
+        const esResta = ['GASTO', 'PAGO', 'DEVOLUCION', 'DEVOLUCION_INVERSION', 'EGRESO', 'COMPRA'].includes(tipo);
+
+        if (esSuma) return acc + monto;
+        if (esResta) return acc - monto;
       }
-
-      if (['INGRESO', 'COBRO'].includes(d.tipo)) {
-        projectMap[pid].ingresos += monto;
-      } else {
-        projectMap[pid].egresos += monto;
-      }
-    });
-
-    // Calculate benefits and margins
-    const results = Object.values(projectMap).map(p => {
-      p.beneficio = p.ingresos - p.egresos;
-      p.margen = p.ingresos > 0 ? (p.beneficio / p.ingresos) * 100 : 0;
-      return p;
-    });
-
-    // Sort by benefit
-    return results.sort((a, b) => b.beneficio - a.beneficio);
+      return acc;
+    }, 0);
   }
 };

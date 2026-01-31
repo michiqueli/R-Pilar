@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/customSupabaseClient'; 
 import { useTheme } from '@/contexts/ThemeProvider';
 import { 
   MoreVertical, Search, Filter, Columns, Plus, 
@@ -20,10 +21,9 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from '@/components/ui/use-toast';
-import { movimientosTesoreriaService } from '@/services/movimientosTesoreriaService';
 
 const MovimientosTesoreriaTable = ({
-  movimientos,
+  movimientos = [], // Valor por defecto para evitar errores
   loading,
   onSearch,
   onFilterChange,
@@ -33,11 +33,15 @@ const MovimientosTesoreriaTable = ({
   onDelete,
   onDuplicate,
   onNew,
-  onRefresh // Prop vital para actualizar KPIs al confirmar
+  onRefresh
 }) => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [updatingId, setUpdatingId] = useState(null);
+  
+  // 1. ESTADO LOCAL PARA REFLEJO INSTANTÁNEO
+  const [localMovimientos, setLocalMovimientos] = useState([]);
+
   const [visibleColumns, setVisibleColumns] = useState({
     fecha: true,
     descripcion: true,
@@ -48,22 +52,47 @@ const MovimientosTesoreriaTable = ({
     acciones: true
   });
 
+  // 2. SINCRONIZAR PROPS CON ESTADO LOCAL
+  // Cada vez que el padre nos manda datos nuevos (al cargar o al refrescar), actualizamos la copia local.
+  useEffect(() => {
+    setLocalMovimientos(movimientos);
+  }, [movimientos]);
+
   const handleSearch = (e) => {
     const term = e.target.value;
     setSearchTerm(term);
     onSearch(term);
   };
 
-  // Lógica de Toggle Rápido de Confirmación
+  const formatSafeDate = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(`${dateString}T12:00:00`);
+    return formatDate(date);
+  };
+
+  // 3. TOGGLE CON ACTUALIZACIÓN OPTIMISTA
   const handleQuickStatusToggle = async (mov) => {
     if (updatingId) return;
-    setUpdatingId(mov.id);
     
+    // Guardamos el estado anterior por si falla la BDD
+    const estadoAnterior = mov.estado;
     const nuevoEstado = mov.estado === 'CONFIRMADO' ? 'PENDIENTE' : 'CONFIRMADO';
     
+    setUpdatingId(mov.id);
+
+    // A) ACTUALIZACIÓN VISUAL INSTANTÁNEA (Optimistic UI)
+    setLocalMovimientos(prev => prev.map(m => 
+        m.id === mov.id ? { ...m, estado: nuevoEstado } : m
+    ));
+    
     try {
-      // Usamos el servicio para actualizar solo el campo estado
-      await movimientosTesoreriaService.patchEstado(mov.id, nuevoEstado);
+      // B) ACTUALIZACIÓN EN BASE DE DATOS
+      const { error } = await supabase
+        .from('inversiones')
+        .update({ estado: nuevoEstado })
+        .eq('id', mov.id);
+
+      if (error) throw error;
       
       toast({
         title: nuevoEstado === 'CONFIRMADO' ? "Movimiento Confirmado" : "Movimiento Pendiente",
@@ -71,12 +100,19 @@ const MovimientosTesoreriaTable = ({
         className: nuevoEstado === 'CONFIRMADO' ? "bg-green-50 border-green-200" : ""
       });
 
-      if (onRefresh) onRefresh(); // Dispara la recarga de los KPIs y la tabla
+      // C) AVISAR AL PADRE (Para que recalcule KPIs, totales, etc.)
+      if (onRefresh) onRefresh(); 
+
     } catch (error) {
+      console.error(error);
+      // D) SI FALLA, REVERTIMOS EL CAMBIO VISUAL
+      setLocalMovimientos(prev => prev.map(m => 
+        m.id === mov.id ? { ...m, estado: estadoAnterior } : m
+      ));
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudo cambiar el estado del movimiento."
+        description: "No se pudo cambiar el estado."
       });
     } finally {
       setUpdatingId(null);
@@ -98,6 +134,7 @@ const MovimientosTesoreriaTable = ({
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Filtros Popover */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -142,6 +179,7 @@ const MovimientosTesoreriaTable = ({
             </PopoverContent>
           </Popover>
 
+          {/* Columnas Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -198,23 +236,23 @@ const MovimientosTesoreriaTable = ({
                           </div>
                         </td>
                      </tr>
-                  ) : movimientos.length === 0 ? (
+                  ) : localMovimientos.length === 0 ? ( // 4. USAR localMovimientos AQUÍ
                      <tr>
                         <td colSpan={7} className="px-6 py-12 text-center text-gray-500">No se encontraron movimientos</td>
                      </tr>
                   ) : (
-                     movimientos.map((mov) => {
+                     localMovimientos.map((mov) => { // 5. MAPEAR SOBRE localMovimientos
                         const isConfirmado = mov.estado === 'CONFIRMADO';
                         const isUpdating = updatingId === mov.id;
 
                         return (
                           <tr key={mov.id} className={cn(
                             "hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group",
-                            isUpdating && "opacity-50 pointer-events-none"
+                            isUpdating && "opacity-70 pointer-events-none" // Opacidad suave mientras actualiza
                           )}>
                              {visibleColumns.fecha && (
                                 <td className="px-6 py-4 text-gray-600 dark:text-gray-300 font-mono text-xs">
-                                   {formatDate(mov.fecha)}
+                                   {formatSafeDate(mov.fecha)}
                                 </td>
                              )}
                              {visibleColumns.descripcion && (
@@ -223,7 +261,7 @@ const MovimientosTesoreriaTable = ({
                                       {mov.descripcion}
                                    </div>
                                    <div className="text-xs text-gray-500 truncate max-w-[200px]">
-                                      {mov.providers?.name || mov.inversionistas?.nombre || 'Sin entidad'}
+                                      {mov.providers?.name || mov.inversionistas?.nombre || mov.clients?.name || 'Sin entidad'}
                                    </div>
                                 </td>
                              )}
@@ -250,26 +288,25 @@ const MovimientosTesoreriaTable = ({
                                 <td className="px-6 py-4">
                                    <div className="flex items-center justify-center gap-3">
                                       <button
-                                        onClick={() => handleQuickStatusToggle(mov)}
-                                        disabled={isUpdating}
-                                        className="focus:outline-none hover:scale-110 transition-transform relative"
-                                        title={isConfirmado ? "Marcar como pendiente" : "Confirmar movimiento"}
+                                         onClick={() => handleQuickStatusToggle(mov)}
+                                         // Eliminamos el disabled=isUpdating para que la UI optimista se sienta instantánea
+                                         // El estado "updating" solo se usa para prevenir doble click en la lógica
+                                         className="focus:outline-none hover:scale-110 transition-transform relative cursor-pointer"
+                                         title={isConfirmado ? "Marcar como pendiente" : "Confirmar movimiento"}
                                       >
-                                        {isUpdating ? (
-                                          <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
-                                        ) : isConfirmado ? (
-                                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                        ) : (
-                                          <Circle className="w-5 h-5 text-slate-300 hover:text-blue-500" />
-                                        )}
+                                         {isConfirmado ? (
+                                           <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                         ) : (
+                                           <Circle className="w-5 h-5 text-slate-300 hover:text-blue-500" />
+                                         )}
                                       </button>
                                       <span className={cn(
-                                        "text-[10px] font-bold px-2 py-0.5 rounded-full border",
-                                        isConfirmado 
-                                          ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400" 
-                                          : "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400"
+                                         "text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors duration-300",
+                                         isConfirmado 
+                                           ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400" 
+                                           : "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400"
                                       )}>
-                                        {mov.estado}
+                                         {mov.estado}
                                       </span>
                                    </div>
                                 </td>
@@ -296,7 +333,6 @@ const MovimientosTesoreriaTable = ({
                                             <Edit className="w-4 h-4 mr-2" /> Editar
                                          </DropdownMenuItem>
                                          
-                                         {/* Toggle rápido también en el menú por accesibilidad */}
                                          <DropdownMenuItem onClick={() => handleQuickStatusToggle(mov)}>
                                             <CheckCircle2 className="w-4 h-4 mr-2" /> 
                                             {isConfirmado ? 'Desmarcar' : 'Confirmar'}

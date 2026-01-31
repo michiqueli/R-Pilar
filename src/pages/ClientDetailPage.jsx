@@ -40,6 +40,7 @@ const ClientDetailPage = () => {
   const fetchClientData = async () => {
     setLoading(true);
     try {
+      // 1. Datos del Cliente
       const { data, error } = await supabase
         .from('clients')
         .select('*')
@@ -49,53 +50,67 @@ const ClientDetailPage = () => {
       if (error) throw error;
       setClient(data);
 
-      // Fetch KPIs
-      // 1. Active Projects
+      // 2. Proyectos Activos (Para el KPI de la izquierda)
       const { count: activeProjects } = await supabase
         .from('projects')
         .select('*', { count: 'exact', head: true })
         .eq('client_id', id)
         .eq('status', 'active');
 
-      // 2. Invoices (Simplified calc for now, would ideally use DB functions for date diffs or fetch relevant rows)
+      // 3. Facturas (Para saber cuánto le cobramos)
       const { data: invoices } = await supabase
         .from('invoices')
         .select('*')
         .eq('client_id', id);
 
-      const { data: payments } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('client_id', id);
+      // 4. Inversiones/Pagos (Para saber cuánto nos pagó realmente)
+      // Nota: Asumimos que 'inversiones' aquí actúa como registro de cobros/entradas
+      const { data: movimientos } = await supabase
+        .from('inversiones')
+        .select('monto_ars, estado, fecha') // Traemos solo lo necesario
+        .eq('cliente_id', id);
 
+      // --- CÁLCULOS ---
       const now = new Date();
       const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(now.getDate() - 30);
       const twelveMonthsAgo = new Date(); twelveMonthsAgo.setMonth(now.getMonth() - 12);
 
-      let billed30 = 0;
-      let billed12 = 0;
-      let totalBilled = 0;
-      let totalPaid = 0;
+      let billed30 = 0;   // KPI: Facturado 30 días
+      let billed12 = 0;   // KPI: Facturado 12 meses
+      let totalBilled = 0; // Total histórico facturado
+      let totalPaid = 0;   // Total histórico cobrado (Realmente ingresado)
 
+      // A. Procesar Facturas
       invoices?.forEach(inv => {
          const d = new Date(inv.date);
          const amount = Number(inv.total);
-         if (['paid', 'approved', 'sent'].includes(inv.status)) { // Assuming sent invoices count towards billing metrics? Or only approved? Let's say approved/paid for recognized revenue
+         
+         // Solo sumamos facturas que no sean borrador
+         if (inv.status !== 'draft') {
+             totalBilled += amount;
+             
+             // Filtros de fecha para los KPIs
              if (d >= thirtyDaysAgo) billed30 += amount;
              if (d >= twelveMonthsAgo) billed12 += amount;
          }
-         if (inv.status !== 'draft') totalBilled += amount;
       });
 
-      payments?.forEach(p => {
-         if (p.status === 'completed' || p.status === 'pending') totalPaid += Number(p.amount);
+      // B. Procesar Pagos (Desde Inversiones)
+      movimientos?.forEach(p => {
+         // CORRECCIÓN: Para calcular deuda, usualmente solo cuentan los CONFIRMADOS.
+         // Si incluyes 'PENDIENTE', la deuda desaparecerá aunque no tengas el dinero todavía.
+         if (p.estado === 'CONFIRMADO') { 
+             totalPaid += Number(p.monto_ars);
+         }
       });
 
+      // C. Setear KPIs
       setKpis({
         activeProjects: activeProjects || 0,
         billedLast30Days: billed30,
         billedLast12Months: billed12,
-        outstandingDebt: Math.max(0, totalBilled - totalPaid)
+        // Cálculo final: Lo que facturé MENOS lo que me pagaron (Confirmado)
+        outstandingDebt: Math.max(0, totalBilled - totalPaid) 
       });
 
     } catch (error) {
@@ -129,12 +144,6 @@ const ClientDetailPage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="max-w-7xl mx-auto space-y-6"
         >
-          {/* Header */}
-          <PageHeader 
-             title={client.name} 
-             breadcrumbs={['Inicio', 'Clientes', client.name]} 
-          />
-          
           {/* Main Card */}
           <Card className="p-6 relative overflow-hidden">
             <div className="flex flex-col md:flex-row gap-8 items-start">

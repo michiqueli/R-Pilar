@@ -1,96 +1,173 @@
-
-import React, { useState } from 'react';
-import { Plus, FileText, ExternalLink, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, FileText, Trash2, Download, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
+import { supabase } from '@/lib/customSupabaseClient';
+import { useToast } from '@/components/ui/use-toast';
 import ProviderStatementModal from '@/components/providers/modals/ProviderStatementModal';
 
-function ProviderStatementsTab({ providerId, statements, onRefresh }) {
+const ProviderStatementsTab = ({ providerId }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [statements, setStatements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  // Helper to format YYYY-MM-DD to Month Year
+  // Función para cargar los datos (independiente)
+  const fetchStatements = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('provider_statements')
+        .select('*')
+        .eq('provider_id', providerId)
+        .order('statement_month', { ascending: false });
+
+      if (error) throw error;
+      setStatements(data || []);
+    } catch (error) {
+      console.error("Error al cargar resúmenes:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [providerId]);
+
+  useEffect(() => {
+    if (providerId) fetchStatements();
+  }, [providerId, fetchStatements]);
+
+  // Función para eliminar (Registro + Archivo en Storage)
+  const handleDelete = async (statement) => {
+    if (!window.confirm('¿Estás seguro de eliminar este resumen?')) return;
+
+    try {
+      // 1. Si tiene archivo, lo borramos del Storage
+      if (statement.file_url) {
+        // Extraemos el path del URL público
+        const path = statement.file_url.split('/public/provider_documents/')[1];
+        if (path) {
+          await supabase.storage.from('provider_documents').remove([path]);
+        }
+      }
+
+      // 2. Borramos el registro de la tabla
+      const { error } = await supabase
+        .from('provider_statements')
+        .delete()
+        .eq('id', statement.id);
+
+      if (error) throw error;
+
+      toast({ title: 'Eliminado', description: 'El resumen ha sido borrado.' });
+      fetchStatements(); // Refrescar lista
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
+
   const formatMonthYear = (dateStr) => {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
+    const date = new Date(dateStr + 'T12:00:00');
     return date.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
   };
 
   return (
-    <div>
-      <div className="flex justify-end mb-6">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center pt-2">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Resúmenes y Cuentas Corrientes</h3>
         <Button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+          className="rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 px-6"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Statement
+          <Plus className="w-4 h-4 mr-2" /> Subir Resumen
         </Button>
       </div>
 
-      {statements.length === 0 ? (
-        <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
-          <p className="text-slate-600">No account statements available.</p>
-          <p className="text-sm text-slate-400 mt-1">Upload monthly statements to keep track.</p>
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+        </div>
+      ) : statements.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+          <FileText className="w-12 h-12 text-slate-300 mb-4" />
+          <p className="text-slate-600 dark:text-slate-400 font-medium">No hay estados de cuenta disponibles</p>
+          <p className="text-sm text-slate-400">Sube los PDFs mensuales para tener un respaldo.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {statements.map((statement, index) => (
-            <motion.div
-              key={statement.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.05 }}
-              className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="bg-blue-50 p-2 rounded-lg">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-slate-900 capitalize">
-                      {formatMonthYear(statement.statement_month)}
-                    </h3>
-                    <p className="text-xs text-slate-500 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {statement.statement_month}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              {statement.notes && (
-                <p className="text-sm text-slate-600 mb-4 line-clamp-2">
-                  {statement.notes}
-                </p>
-              )}
-
-              {statement.file_url ? (
-                <a 
-                  href={statement.file_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 mt-auto"
+        <div className="overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <th className="text-left py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Período</th>
+                <th className="text-left py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Notas</th>
+                <th className="text-right py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {statements.map((statement, index) => (
+                <motion.tr
+                  key={statement.id}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors"
                 >
-                  <ExternalLink className="w-3 h-3" />
-                  View Document
-                </a>
-              ) : (
-                <span className="text-sm text-slate-400 italic">No file attached</span>
-              )}
-            </motion.div>
-          ))}
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg text-blue-600">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="block font-bold text-slate-900 dark:text-white capitalize text-sm">
+                          {formatMonthYear(statement.statement_month)}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {statement.statement_month}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6 text-sm text-slate-600 dark:text-slate-400">
+                    {statement.notes || <span className="italic opacity-50">Sin observaciones</span>}
+                  </td>
+                  <td className="py-4 px-6 text-right">
+                    <div className="flex justify-end gap-2">
+                      {statement.file_url && (
+                        <Button 
+                          variant="ghost" 
+                          size="iconSm"
+                          className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600"
+                          asChild
+                        >
+                          <a href={statement.file_url} target="_blank" rel="noopener noreferrer">
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </Button>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="iconSm"
+                        className="rounded-full hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600"
+                        onClick={() => handleDelete(statement)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
       <ProviderStatementModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={onRefresh}
+        onSuccess={fetchStatements} // Refresca esta misma pestaña al terminar
         providerId={providerId}
       />
     </div>
   );
-}
+};
 
 export default ProviderStatementsTab;

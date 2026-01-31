@@ -21,7 +21,6 @@ import TasksPage from '@/pages/TasksPage';
 import TaskDetailPage from '@/pages/TaskDetailPage';
 import ClientsPage from '@/pages/ClientsPage';
 import ClientDetailPage from '@/pages/ClientDetailPage';
-import AccountsPage from '@/pages/AccountsPage';
 import ProvidersPage from '@/pages/ProvidersPage';
 import ProviderDetailPage from '@/pages/ProviderDetailPage';
 import MovimientosTesoreriaPage from '@/pages/MovimientosTesoreriaPage';
@@ -140,7 +139,6 @@ function App() {
                         <Route path="/tasks" element={<TasksPage />} />
                         <Route path="/tasks/:id" element={<TaskDetailPage />} />
                         
-                        <Route path="/accounts" element={<AccountsPage />} />
                         <Route path="/cuentas" element={<CuentasPage />} />
                         <Route path="/cuentas/:cuenta_id" element={<CuentaDetallePage />} />
                         <Route path="/providers" element={<ProvidersPage />} />

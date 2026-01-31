@@ -98,72 +98,53 @@ export const investmentService = {
 
   async getAccountKPIs(accountId) {
     try {
-      // 1. Fetch investment movements
-      const { data: invData, error: invError } = await supabase
-        .from('inversiones_movimientos')
-        .select('tipo, monto_ars')
-        .eq('cuenta_id', accountId);
-      
-      if (invError) throw invError;
+      // 1. Fetch de todos los movimientos de esta cuenta en una sola consulta
+      const { data, error } = await supabase
+        .from('inversiones')
+        .select('tipo, monto_ars, estado')
+        .eq('cuenta_id', accountId)
+        .eq('is_deleted', false); // Importante filtrar los borrados
 
-      // 2. Fetch Expenses (Gastos)
-      const { data: expData, error: expError } = await supabase
-        .from('expenses')
-        .select('amount, amount_ars')
-        .eq('account_id', accountId)
-        .is('is_deleted', false);
+      if (error) throw error;
 
-      if (expError) throw expError;
-
-      // 3. Fetch Incomes (Ingresos)
-      const { data: incData, error: incError } = await supabase
-        .from('incomes')
-        .select('amount, amount_ars')
-        .eq('account_id', accountId)
-        .is('is_deleted', false);
-
-      if (incError) throw incError;
-      
       let totalIngresado = 0;
       let totalGastos = 0;
       let mayorGasto = 0;
-      let count = 0;
-      
-      // Process Investments
-      invData.forEach(mov => {
+      let count = data ? data.length : 0;
+
+      data?.forEach(mov => {
         const monto = Number(mov.monto_ars || 0);
-        if (mov.tipo === 'INGRESO' || mov.tipo === 'INVERSION_RECIBIDA') {
-          totalIngresado += monto;
-        } else if (mov.tipo === 'EGRESO' || mov.tipo === 'DEVOLUCION_INVERSION') {
-          totalGastos += monto;
-          if (monto > mayorGasto) mayorGasto = monto;
+
+        // Solo sumamos al total lo que ya está CONFIRMADO
+        // Lo PENDIENTE lo ignoramos para los KPIs de "Total Real"
+        if (mov.estado === 'CONFIRMADO') {
+
+          // Lógica de Ingresos vs Gastos
+          // Ajusta los strings de 'tipo' según tus ENUMS exactos
+          const esIngreso = ['INGRESO', 'INVERSION', 'COBRO'].includes(mov.tipo);
+          const esGasto = ['GASTO', 'DEVOLUCION_INVERSION', 'EGRESO'].includes(mov.tipo);
+
+          if (esIngreso) {
+            totalIngresado += monto;
+          } else if (esGasto) {
+            totalGastos += monto;
+            // Trackeamos el gasto más alto registrado
+            if (monto > mayorGasto) {
+              mayorGasto = monto;
+            }
+          }
         }
-        count++;
-      });
-
-      // Process Expenses
-      expData.forEach(exp => {
-        const monto = Number(exp.amount_ars || exp.amount || 0);
-        totalGastos += monto;
-        if (monto > mayorGasto) mayorGasto = monto;
-        count++;
-      });
-
-      // Process Incomes
-      incData.forEach(inc => {
-        const monto = Number(inc.amount_ars || inc.amount || 0);
-        totalIngresado += monto;
-        count++;
       });
 
       return {
         totalIngresado,
         totalGastos,
         mayorGasto,
-        cantMovimientos: count
+        cantMovimientos: count // Aquí sumamos confirmados + pendientes para la métrica de actividad
       };
+
     } catch (error) {
-      console.error('Error fetching account KPIs:', error);
+      console.error('Error fetching account KPIs from inversiones:', error);
       return { totalIngresado: 0, totalGastos: 0, mayorGasto: 0, cantMovimientos: 0 };
     }
   },

@@ -47,7 +47,7 @@ export const movimientoService = {
         vat_included: m.iva_incluido,
         vat_percent: m.iva_porcentaje,
         status: m.estado,
-        
+
         // Relations
         cuenta_titulo: m.cuentas?.titulo || '—',
         cuenta_id: m.cuenta_id,
@@ -88,11 +88,11 @@ export const movimientoService = {
       // Normalize data
       const normalized = (data || []).map(m => ({
         id: m.id,
-        type: m.tipo, 
+        type: m.tipo,
         tipo_movimiento: m.tipo,
         description: m.descripcion,
         date: m.fecha,
-        
+
         // Economic details
         amount_ars: m.monto_ars,
         usd_amount: m.monto_usd,
@@ -101,14 +101,14 @@ export const movimientoService = {
         net_amount: m.neto,
         vat_included: m.iva_incluido,
         vat_percent: m.iva_porcentaje,
-        
+
         status: m.estado,
-        
+
         // Relations
         cuenta_titulo: m.cuentas?.titulo || '—',
         cuenta_id: m.cuenta_id,
         project_id: m.proyecto_id,
-        
+
         // Helper for display
         provider_name: m.providers?.name || m.inversionistas?.nombre || '—'
       }));
@@ -143,23 +143,23 @@ export const movimientoService = {
       // Normalize data to match the UI components expected structure
       const normalized = (data || []).map(m => ({
         id: m.id,
-        type: m.tipo, 
+        type: m.tipo,
         tipo_movimiento: m.tipo,
         description: m.descripcion,
         date: m.fecha,
-        amount: m.monto_ars, 
+        amount: m.monto_ars,
         amount_ars: m.monto_ars,
         usd_amount: m.monto_usd,
         fx_rate: m.valor_usd,
-        vat_amount: (m.monto_ars || 0) - (m.neto || 0), 
+        vat_amount: (m.monto_ars || 0) - (m.neto || 0),
         net_amount: m.neto,
         status: m.estado,
-        
+
         // Relations
-        projects: m.projects, 
-        providers: m.providers, 
+        projects: m.projects,
+        providers: m.providers,
         inversionistas: m.inversionistas,
-        
+
         // Helper to get a displayable "Responsible" name
         responsibleName: m.inversionistas?.nombre || m.providers?.name || '-'
       }));
@@ -200,7 +200,7 @@ export const movimientoService = {
         expensesQuery = expensesQuery.eq('proyecto_id', projectId);
         incomesQuery = incomesQuery.eq('project_id', projectId);
       }
-      
+
       // FIX: Sanitize date filters
       const safeDateFrom = toNullableDate(dateFrom);
       const safeDateTo = toNullableDate(dateTo);
@@ -209,7 +209,7 @@ export const movimientoService = {
         expensesQuery = expensesQuery.gte('fecha', safeDateFrom);
         incomesQuery = incomesQuery.gte('income_date', safeDateFrom);
       }
-      
+
       if (safeDateTo) {
         expensesQuery = expensesQuery.lte('fecha', safeDateTo);
         incomesQuery = incomesQuery.lte('income_date', safeDateTo);
@@ -263,16 +263,16 @@ export const movimientoService = {
       }));
 
       let combined = [...expenses, ...incomes];
-      
-      combined = this.applyFilters(combined, { 
-        type, 
-        status, 
-        category, 
-        responsible, 
-        searchTerm, 
-        currency 
+
+      combined = this.applyFilters(combined, {
+        type,
+        status,
+        category,
+        responsible,
+        searchTerm,
+        currency
       });
-      
+
       combined.sort((a, b) => new Date(b.date) - new Date(a.date));
 
       return combined;
@@ -285,15 +285,15 @@ export const movimientoService = {
   async getMonthlyBalance(projectId, month, year) {
     try {
       const startDate = new Date(year, month, 1);
-      const endDate = new Date(year, month + 1, 0); 
-      
+      const endDate = new Date(year, month + 1, 0);
+
       const dateFrom = startDate.toISOString().split('T')[0];
       const dateTo = endDate.toISOString().split('T')[0];
 
-      const movimientos = await this.getMovimientos({ 
-        projectId, 
-        dateFrom, 
-        dateTo 
+      const movimientos = await this.getMovimientos({
+        projectId,
+        dateFrom,
+        dateTo
       });
 
       return this.calculateBalanceFromMovimientos(movimientos);
@@ -319,7 +319,7 @@ export const movimientoService = {
 
     movimientos.forEach(m => {
       const amount = Number(m.amount_ars || m.amount || 0);
-      
+
       if (m.type === 'ingreso') {
         income += amount;
       } else if (m.type === 'gasto' || m.original_type === 'GASTO' || m.original_type === 'DEVOLUCION') {
@@ -348,7 +348,7 @@ export const movimientoService = {
           inversionistas (id, nombre)
         `)
         .eq('cuenta_id', cuentaId);
-        
+
       if (expenseError) throw expenseError;
 
       // Replace 'incomes' with 'project_income'
@@ -396,7 +396,7 @@ export const movimientoService = {
   async getMovimientoStats(cuentaId) {
     try {
       const movimientos = await this.getMovimientosByCuenta(cuentaId);
-      
+
       let totalIngresado = 0;
       let totalGastos = 0;
       let mayorGasto = 0;
@@ -426,7 +426,7 @@ export const movimientoService = {
   applyFilters(movimientos, { type, status, category, responsible, searchTerm, currency }) {
     return movimientos.filter(mov => {
       if (type && type !== 'todos' && mov.type !== type) return false;
-      
+
       if (status && status.length > 0) {
         const normalizedStatus = (mov.status || '').toUpperCase();
         const hasMatch = status.some(s => normalizedStatus.includes(s.toUpperCase()));
@@ -446,7 +446,7 @@ export const movimientoService = {
         const matchesPartida = mov.partida?.toLowerCase().includes(searchLower);
         const matchesAmount = mov.amount?.toString().includes(searchTerm) || mov.amount_ars?.toString().includes(searchTerm);
         const matchesResponsible = mov.responsible?.toLowerCase().includes(searchLower);
-        
+
         if (!matchesDescription && !matchesProject && !matchesAmount && !matchesPartida && !matchesResponsible) return false;
       }
 
@@ -456,7 +456,7 @@ export const movimientoService = {
 
   sortMovimientos(movimientos, sortBy = 'date', sortOrder = 'desc') {
     if (!Array.isArray(movimientos)) return [];
-    
+
     return [...movimientos].sort((a, b) => {
       let valA = a[sortBy];
       let valB = b[sortBy];
@@ -483,12 +483,12 @@ export const movimientoService = {
 
   paginateMovimientos(movimientos, page = 1, pageSize = 25) {
     if (!Array.isArray(movimientos)) return { data: [], totalPages: 0 };
-    
+
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     const paginatedData = movimientos.slice(startIndex, endIndex);
     const totalPages = Math.ceil(movimientos.length / pageSize);
-    
+
     return {
       data: paginatedData,
       totalPages
@@ -497,7 +497,7 @@ export const movimientoService = {
 
   async createMovimiento(payload) {
     const isInvestment = payload.tipo_movimiento === 'INVERSION_RECIBIDA' || payload.tipo_movimiento === 'DEVOLUCION_INVERSION';
-    
+
     if (isInvestment) {
       const validationForm = {
         inversionista_id: payload.inversionistaId || payload.inversionista_id,
@@ -524,8 +524,8 @@ export const movimientoService = {
   },
 
   async saveMovimiento(payload, isNew) {
-    const { 
-      id, type, description, amount, category, projectId, date, responsible, notes, 
+    const {
+      id, type, description, amount, category, projectId, date, responsible, notes,
       amount_ars, fx_rate, usd_amount, vat_percent, vat_included, net_amount, vat_amount,
       partidaId, status, comprobante_url, tipo_movimiento, inversionista_id, account_id, cuenta_id
     } = payload;
@@ -534,7 +534,7 @@ export const movimientoService = {
     const safeDate = toNullableDate(date);
 
     const isExpenseTable = type === 'gasto' || type === 'DEVOLUCION_INVERSION';
-    
+
     if (isExpenseTable) {
       // Map to 'inversiones' table
       const inversionData = {
@@ -590,25 +590,24 @@ export const movimientoService = {
     }
   },
 
-  async deleteMovimiento(movimientoId, type) {
-    const table = (type === 'gasto' || type === 'DEVOLUCION_INVERSION') ? 'inversiones' : 'project_income';
-    
-    if (table === 'project_income') {
+  async deleteMovimiento(movimientoId) {
+    try {
+      // Ahora usamos Soft Delete para inversiones también
+      // Esto evita errores de violación de clave foránea
       const { error } = await supabase
-        .from(table)
-        .update({ is_deleted: true })
+        .from('inversiones')
+        .update({
+          is_deleted: true,
+          estado: 'ANULADO' // Opcional: para que en la DB quede claro el estado
+        })
         .eq('id', movimientoId);
+
       if (error) throw error;
-    } else {
-      // 'inversiones' doesn't have is_deleted in schema, so we might need to delete or update status
-      // Assuming hard delete or status update based on schema limitations
-      // Schema: id, created_at, tipo, descripcion, fecha, monto_ars, estado...
-      // We'll try to delete row for now as no is_deleted column is visible in schema for inversiones
-      const { error } = await supabase
-        .from(table)
-        .delete()
-        .eq('id', movimientoId);
-      if (error) throw error;
+
+      return true;
+    } catch (error) {
+      console.error("Error al eliminar movimiento:", error);
+      throw error;
     }
   },
 
@@ -619,11 +618,11 @@ export const movimientoService = {
       .select('*')
       .eq('id', id)
       .single();
-      
+
     if (error) throw error;
     return data;
   },
-  
+
   async uploadComprobante(file) {
     if (!file) return null;
     const fileExt = file.name.split('.').pop();
@@ -644,7 +643,7 @@ export const movimientoService = {
   async getMonthlyMovements(projectId, month, year) {
     const startDate = new Date(year, month, 1).toISOString().split('T')[0];
     const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
-    
+
     return this.getMovimientos({
       projectId,
       dateFrom: startDate,
