@@ -7,18 +7,32 @@ export const analiticaService = {
     */
   getDateRange(periodo, year, month) {
     let startDate, endDate;
+
     if (periodo === 'mes') {
       const y = parseInt(year);
       const m = parseInt(month);
-      // Formato YYYY-MM-DD para evitar problemas de zona horaria en el filtro
+
+      // El primer día es siempre 01
       startDate = `${y}-${m.toString().padStart(2, '0')}-01`;
-      endDate = `${y}-${m.toString().padStart(2, '0')}-31`; // Supabase lte corregirá el fin de mes
+
+      // CALCULADORA DE FIN DE MES REAL:
+      // Al pasar 'm' (que es el mes siguiente en base 1) y día '0', 
+      // JS te devuelve el último día del mes que necesitás.
+      const ultimoDia = new Date(y, m, 0).getDate();
+
+      endDate = `${y}-${m.toString().padStart(2, '0')}-${ultimoDia}`;
+
     } else {
       startDate = `${year}-01-01`;
       endDate = `${year}-12-31`;
     }
+
     return { startDate, endDate };
   },
+
+  /**
+   * 1. KPIs Generales
+   */
 
   async getKPIs(periodo, year, month, moneda) {
     const { startDate, endDate } = this.getDateRange(periodo, year, month);
