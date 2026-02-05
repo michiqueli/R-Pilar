@@ -256,7 +256,7 @@ const ProjectMovimientosTab = ({ projectId }) => {
                      <RefreshCw className={cn("w-4 h-4", loadingMovements && "animate-spin")} />
                   </Button>
                   <Button 
-                     onClick={() => navigate(`/movimientos/nuevo?projectId=${projectId}`)}
+                     onClick={() => navigate(`/movements/new?projectId=${projectId}`)}
                      className="flex-1 sm:flex-none rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 gap-2"
                   >
                      <Plus className="w-4 h-4" /> Nuevo Movimiento

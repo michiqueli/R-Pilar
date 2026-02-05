@@ -10,7 +10,7 @@ import { projectService } from '@/services/projectService';
 import { useToast } from '@/components/ui/use-toast';
 import { tokens } from '@/lib/designTokens';
 
-const WorkPlanModal = ({ isOpen, onClose, onSuccess, projectId, item }) => {
+const WorkPlanModal = ({ isOpen, onClose, projectId, item }) => {
   const { t } = useTheme();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -61,7 +61,7 @@ const WorkPlanModal = ({ isOpen, onClose, onSuccess, projectId, item }) => {
         await projectService.createWorkPlan(payload);
       }
       toast({ title: t('common.success'), description: 'Partida guardada correctamente' });
-      onSuccess();
+      onClose();
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: t('common.error'), description: 'Error al guardar la partida' });

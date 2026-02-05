@@ -87,25 +87,39 @@ const TasksTable = ({
 
   // Handlers (handleChangeEstado, handleDelete, etc. se mantienen igual...)
   const handleChangeEstado = async (tareaId, nuevoEstado) => {
-    setUpdatingId(tareaId);
-    try {
-      const now = new Date().toISOString();
-      const { error } = await supabase
-        .from('tareas')
-        .update({ estado: nuevoEstado, fecha_actualizacion: now })
-        .eq('id', tareaId);
+  setUpdatingId(tareaId);
+  
+  // 1. Guardamos el estado anterior por si falla la red (opcional pero pro)
+  const previousTasks = [...localTasks];
 
-      if (error) throw error;
+  try {
+    const now = new Date().toISOString();
+    
+    // 2. Actualizamos LOCALMENTE primero (Instantáneo)
+    setLocalTasks(prev => prev.map(t => 
+      t.id === tareaId ? { ...t, estado: nuevoEstado, fecha_actualizacion: now } : t
+    ));
 
-      setLocalTasks(prev => prev.map(t => t.id === tareaId ? { ...t, estado: nuevoEstado, fecha_actualizacion: now } : t));
-      toast({ title: "Actualizado", description: `Tarea en estado ${nuevoEstado.toLowerCase()}` });
-      if (onReload) onReload();
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar." });
-    } finally {
-      setUpdatingId(null);
-    }
-  };
+    const { error } = await supabase
+      .from('tareas')
+      .update({ estado: nuevoEstado, fecha_actualizacion: now })
+      .eq('id', tareaId);
+
+    if (error) throw error;
+
+    toast({ title: "Actualizado", description: `Tarea en estado ${nuevoEstado.toLowerCase()}` });
+    
+    // ❌ ELIMINAR ESTO:
+    // if (onReload) onReload(); 
+    
+  } catch (error) {
+    // 3. Si hay error, revertimos al estado anterior
+    setLocalTasks(previousTasks);
+    toast({ variant: "destructive", title: "Error", description: "No se pudo sincronizar con el servidor." });
+  } finally {
+    setUpdatingId(null);
+  }
+};
 
   const handleToggleFinalizada = async (tarea) => {
     if (updatingId) return;

@@ -18,6 +18,7 @@ import { projectService } from '@/services/projectService';
 import { subpartidaService } from '@/services/subpartidaService';
 import { supabase } from '@/lib/customSupabaseClient';
 import PartidaDetailModal from '@/components/projects/modals/PartidaDetailModal';
+import WorkPlanModal from '@/components/projects/modals/WorkPlanModal';
 import SubpartidaModal from '@/components/projects/SubpartidaModal';
 import EditarSubPartidaModal from '@/components/modals/EditarSubPartidaModal';
 import AsignarPresupuestoModal from '@/components/modals/AsignarPresupuestoModal';
@@ -59,6 +60,7 @@ const PlanDeObraTab = ({ projectId }) => {
   useEffect(() => {
     if (projectId) loadAllData();
   }, [projectId]);
+  
 
   // 2. CARGA PROFUNDA INICIAL: Calcula promedios reales antes de mostrar la página
   const loadAllData = async () => {
@@ -358,11 +360,11 @@ const PlanDeObraTab = ({ projectId }) => {
       </div>
 
       {/* Modales */}
-      <PartidaDetailModal
+      <WorkPlanModal
         isOpen={isPartidaModalOpen}
         onClose={() => { setIsPartidaModalOpen(false); setPartidaToEdit(null); loadAllData(); }}
-        partida={partidaToEdit}
         projectId={projectId}
+        item={partidaToEdit}
       />
       <SubpartidaModal isOpen={subModalOpen} onClose={() => setSubModalOpen(false)} partidaId={activePartidaIdForSub} onSuccess={() => loadAllData()} />
       <EditarSubPartidaModal isOpen={editSubModalOpen} onClose={() => setEditSubModalOpen(false)} subPartida={editingSubPartida} onActualizar={() => loadAllData()} />

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-    ArrowLeft, Wallet, CreditCard, Banknote, Edit2, TrendingUp, TrendingDown, 
+import {
+    ArrowLeft, Wallet, CreditCard, Banknote, Edit2, TrendingUp, TrendingDown,
     AlertTriangle, Activity, Plus, Loader2, ArrowUpDown
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -38,6 +38,11 @@ const CuentaDetallePage = () => {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+
+    const handleEdit = (movimientoId) => {
+        // Redirigimos a la página de NewMovement pasando el ID para activar el modo EDICIÓN
+        navigate(`/movements/new?id=${movimientoId}`);
+    };
 
     const fetchData = async () => {
         try {
@@ -100,7 +105,7 @@ const CuentaDetallePage = () => {
 
     // -- Helpers --
     const getIcon = (tipo) => {
-        switch(tipo?.toLowerCase()) {
+        switch (tipo?.toLowerCase()) {
             case 'banco': return CreditCard;
             case 'efectivo': return Banknote;
             default: return Wallet;
@@ -123,7 +128,7 @@ const CuentaDetallePage = () => {
         <>
             <div className="min-h-screen p-6 md:p-8 bg-slate-50/50 dark:bg-[#111827] transition-colors duration-200">
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto space-y-8">
-                    
+
                     {/* Header Section */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
@@ -138,7 +143,7 @@ const CuentaDetallePage = () => {
                                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight">{cuenta?.titulo}</h1>
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className="text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{cuenta?.tipo}</span>
-                                        <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border", 
+                                        <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border",
                                             cuenta?.estado === 'activa' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700')}>
                                             {cuenta?.estado}
                                         </span>
@@ -181,6 +186,7 @@ const CuentaDetallePage = () => {
                                             <SortableHeader label={t('finanzas.montoARS')} sortKey="amount_ars" current={sortConfig} onSort={handleSort} align="right" />
                                             <th className="px-4 py-4 font-semibold text-slate-500 uppercase text-[11px] text-right">{t('finanzas.montoUSD')}</th>
                                             <th className="px-4 py-4 font-semibold text-slate-500 uppercase text-[11px] text-center">{t('common.status')}</th>
+                                            <th className="px-4 py-3 text-right">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -207,13 +213,23 @@ const CuentaDetallePage = () => {
                                                     <td className="px-4 py-4 text-center">
                                                         <StatusBadge status={mov.status} />
                                                     </td>
+                                                    <td className="px-4 py-4 text-right">
+                                                        <Button
+                                                            variant="primary"
+                                                            size="iconSm"
+                                                            onClick={() => handleEdit(mov.id)}
+                                                            className="opacity-70 group-hover:opacity-100 transition-opacity rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </td>
                                                 </tr>
                                             ))
                                         )}
                                     </tbody>
                                 </table>
                             </div>
-                            <TablePaginationBar 
+                            <TablePaginationBar
                                 page={page}
                                 pageSize={pageSize}
                                 totalItems={processedMovements.length}
@@ -234,7 +250,7 @@ const CuentaDetallePage = () => {
 // --- Sub-componentes para Limpieza ---
 
 const SortableHeader = ({ label, sortKey, current, onSort, align = 'left' }) => (
-    <th 
+    <th
         className={cn(
             "px-4 py-4 font-semibold text-slate-500 uppercase text-[11px] cursor-pointer hover:text-blue-600 transition-colors group",
             align === 'right' && 'text-right'

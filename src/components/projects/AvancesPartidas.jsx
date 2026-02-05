@@ -23,10 +23,6 @@ const AvancesPartidas = ({ projectId }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      console.log("📊 [AvancesPartidas] Cargando datos desde work_items para:", projectId);
-
-      // 1. Consultamos work_items (la misma tabla que el Plan de Obra)
-      // Traemos también las subpartidas para calcular el promedio real si la columna 'progreso' no estuviera al día
       const { data: workItems, error } = await supabase
         .from('work_items')
         .select(`

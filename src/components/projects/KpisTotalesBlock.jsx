@@ -8,7 +8,6 @@ import { formatCurrencyARS } from '@/lib/formatUtils';
 import { Button } from '@/components/ui/Button';
 
 const KpisTotalesBlock = ({ projectId }) => {
-  console.log(projectId)
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState({

@@ -592,14 +592,9 @@ export const movimientoService = {
 
   async deleteMovimiento(movimientoId) {
     try {
-      // Ahora usamos Soft Delete para inversiones también
-      // Esto evita errores de violación de clave foránea
       const { error } = await supabase
         .from('inversiones')
-        .update({
-          is_deleted: true,
-          estado: 'ANULADO' // Opcional: para que en la DB quede claro el estado
-        })
+        .delete()
         .eq('id', movimientoId);
 
       if (error) throw error;

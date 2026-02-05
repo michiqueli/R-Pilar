@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
    ArrowLeft, Upload, FileText, X, Save,
    DollarSign, Image as ImageIcon, Loader2,
-   TrendingDown, TrendingUp, ChevronLeft, ChevronRight, CheckCircle2, Plus, Minus
+   TrendingDown, TrendingUp, ChevronLeft, ChevronRight, CheckCircle2, Plus, Minus, RefreshCw
 } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -43,7 +43,7 @@ const NewMovementPage = () => {
 
    const [loading, setLoading] = useState(false);
    const [catalogsLoading, setCatalogsLoading] = useState(true);
-   
+
    // Catálogos
    const [accounts, setAccounts] = useState([]);
    const [projects, setProjects] = useState([]);
@@ -68,8 +68,8 @@ const NewMovementPage = () => {
    const [type, setType] = useState(paramType || 'GASTO');
    const [formData, setFormData] = useState({
       descripcion: '',
-      fecha: format(new Date(), 'yyyy-MM-dd'), 
-      estado: 'CONFIRMADO',
+      fecha: format(new Date(), 'yyyy-MM-dd'),
+      estado: 'PENDIENTE',
       cuenta_id: paramCuentaId || '',
       project_id: paramProjectId || '',
       provider_id: '',
@@ -79,7 +79,7 @@ const NewMovementPage = () => {
       valor_usd: '0',
       monto_usd: 0,
       iva_incluido: false,
-      iva_porcentaje: '21',
+      iva_porcentaje: '20',
       neto: 0,
       notas: ''
    });
@@ -95,6 +95,45 @@ const NewMovementPage = () => {
          fetchMovementData(paramId);
       }
    }, [paramId]);
+
+   useEffect(() => {
+      // Solo buscamos el dólar si es un movimiento NUEVO (no edición)
+      if (!paramId) {
+         fetchDolarHoy();
+      }
+   }, [paramId]);
+
+   const fetchDolarHoy = async () => {
+      try {
+         // Cambiamos a 'oficial' en la URL
+         const response = await fetch('https://dolarapi.com/v1/dolares/oficial');
+         const data = await response.json();
+
+         if (data && data.venta) {
+            // El dólar oficial suele tener un valor de compra y venta; usamos venta.
+            const valorVenta = data.venta;
+
+            setFormData(prev => {
+               const montoArs = parseFloat(prev.monto_ars) || 0;
+               const montoUsd = valorVenta > 0 ? montoArs / valorVenta : 0;
+
+               return {
+                  ...prev,
+                  valor_usd: valorVenta.toString(),
+                  monto_usd: parseFloat(montoUsd.toFixed(2)) // Redondeamos a 2 decimales
+               };
+            });
+
+            toast({
+               title: "Dólar Oficial Actualizado",
+               description: `Cotización al día: $${valorVenta}`,
+               className: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+            });
+         }
+      } catch (error) {
+         console.error("Error obteniendo valor del dólar:", error);
+      }
+   };
 
    const fetchMovementData = async (id) => {
       setLoading(true);
@@ -178,7 +217,7 @@ const NewMovementPage = () => {
       if (fileInputRef.current) fileInputRef.current.value = "";
    };
    function onDocumentLoadSuccess({ numPages }) { setNumPages(numPages); }
-   
+
    const handleTextSelection = (e) => {
       const selection = window.getSelection();
       if (!selection || selection.toString().trim().length === 0) { if (!e.target.closest('#context-menu')) setSelectionMenu(null); return; }
@@ -221,15 +260,27 @@ const NewMovementPage = () => {
 
    const handleEconomicChange = (field, value, currentState = formData) => {
       let newFormData = { ...currentState, [field]: value };
+
       const montoArs = parseFloat(newFormData.monto_ars) || 0;
-      const valorUsd = parseFloat(newFormData.valor_usd) || 1;
+      const valorUsd = parseFloat(newFormData.valor_usd) || 0;
       const ivaPorcentaje = parseFloat(newFormData.iva_porcentaje) || 0;
+
+      // Calcular Monto USD
       const montoUsd = valorUsd > 0 ? montoArs / valorUsd : 0;
+
+      // Calcular Neto (Si IVA está incluido: Neto = Total / (1 + %IVA))
       let neto = montoArs;
-      if (newFormData.iva_incluido) neto = montoArs / (1 + (ivaPorcentaje / 100));
-      
-      if (currentState === formData) setFormData({ ...newFormData, monto_usd: montoUsd, neto });
-      else { currentState.monto_usd = montoUsd; currentState.neto = neto; }
+      if (newFormData.iva_incluido) {
+         neto = montoArs / (1 + (ivaPorcentaje / 100));
+      }
+
+      const finalData = {
+         ...newFormData,
+         monto_usd: montoUsd,
+         neto: parseFloat(neto.toFixed(2))
+      };
+
+      setFormData(finalData);
    };
 
    const validate = () => {
@@ -381,7 +432,7 @@ const NewMovementPage = () => {
                <div className="max-w-2xl mx-auto space-y-8">
                   {/* ... (Todo el formulario igual, ya está conectado con formData) ... */}
                   {/* Solo asegúrate de que los Selects y Inputs usen los valores de formData que ahora se pueblan desde la DB */}
-                  
+
                   {/* Tipo de movimiento */}
                   <div className="space-y-3">
                      <Label>{t('movimientos.type')}</Label>
@@ -412,7 +463,7 @@ const NewMovementPage = () => {
                         <Label>{t('common.date')}</Label>
                         <DatePickerInput date={formData.fecha ? new Date(formData.fecha + 'T12:00:00') : null} onSelect={(d) => d && setFormData({ ...formData, fecha: format(d, 'yyyy-MM-dd') })} />
                      </div>
-                     
+
                      {/* Lógica condicional de Cliente/Proveedor/Inversor */}
                      <div className="space-y-2 col-span-2 md:col-span-1">
                         {type === 'INGRESO' ? (
@@ -441,7 +492,7 @@ const NewMovementPage = () => {
                            </>
                         )}
                      </div>
-                     
+
                      <div className="space-y-2 col-span-2 md:col-span-1">
                         <Label>Proyecto</Label>
                         <Select value={formData.project_id} onValueChange={(val) => setFormData({ ...formData, project_id: val })}>
@@ -453,21 +504,115 @@ const NewMovementPage = () => {
                         </Select>
                      </div>
                   </div>
-
                   {/* Sección Económica */}
-                  <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                           <Label className="font-bold">Monto ARS</Label>
-                           <Input type="number" value={formData.monto_ars} onChange={(e) => handleEconomicChange('monto_ars', e.target.value)} className="font-mono text-lg font-bold" />
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-6">
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+
+                        {/* Monto Total */}
+                        <div className="space-y-2.5">
+                           <Label className="font-bold text-blue-600 dark:text-blue-400 block ml-1">
+                              Monto Total (ARS)
+                           </Label>
+                           <Input
+                              type="number"
+                              value={formData.monto_ars}
+                              onChange={(e) => handleEconomicChange('monto_ars', e.target.value)}
+                              className="font-mono text-lg font-bold bg-white dark:bg-slate-950 h-12 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                              placeholder="0.00"
+                           />
                         </div>
-                        <div className="space-y-2">
-                           <Label>Valor USD</Label>
-                           <Input type="number" value={formData.valor_usd} onChange={(e) => handleEconomicChange('valor_usd', e.target.value)} className="font-mono" />
+
+                        {/* Cotización */}
+                        <div className="space-y-2.5">
+                           <div className="flex items-center justify-between px-1">
+                              <div className="flex items-center gap-2">
+                                 <Label className="font-bold text-slate-700 dark:text-slate-300">Cotización</Label>
+                                 <span className="text-[9px] bg-blue-100/50 text-blue-700 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter border border-blue-200">
+                                    Oficial
+                                 </span>
+                              </div>
+                              <button
+                                 onClick={(e) => { e.preventDefault(); fetchDolarHoy(); }}
+                                 className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-all hover:scale-105 active:scale-95"
+                              >
+                                 <RefreshCw className="w-3 h-3" /> Actualizar
+                              </button>
+                           </div>
+                           <Input
+                              type="number"
+                              value={formData.valor_usd}
+                              onChange={(e) => handleEconomicChange('valor_usd', e.target.value)}
+                              className="font-mono text-lg bg-white dark:bg-slate-950 h-12 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 transition-all text-center"
+                           />
                         </div>
-                        <div className="space-y-2">
-                           <Label>Monto USD</Label>
-                           <div className="h-10 px-3 py-2 bg-slate-100 rounded-md font-mono text-slate-500 flex items-center">{formatCurrencyUSD(formData.monto_usd)}</div>
+
+                        {/* Equivalente */}
+                        <div className="space-y-2.5">
+                           <Label className="font-bold text-slate-500 dark:text-slate-400 block ml-1">
+                              Equivalente USD
+                           </Label>
+                           <div className="h-12 px-4 bg-slate-100 dark:bg-slate-800 rounded-xl font-mono text-lg font-bold text-slate-500 flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-inner">
+                              {formatCurrencyUSD(formData.monto_usd)}
+                           </div>
+                        </div>
+                     </div>
+
+                     {/* Calculadora de IVA */}
+                     <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                           <div className="flex items-center space-x-4">
+                              <div className="flex items-center space-x-2">
+                                 <Switch
+                                    id="iva-incluido"
+                                    checked={formData.iva_incluido}
+                                    onCheckedChange={(val) => handleEconomicChange('iva_incluido', val)}
+                                 />
+                                 <Label htmlFor="iva-incluido" className="cursor-pointer font-medium">¿Incluye IVA?</Label>
+                              </div>
+
+                              {formData.iva_incluido && (
+                                 <div className="flex items-center bg-white dark:bg-slate-950 border rounded-xl p-1 shadow-sm">
+                                    <Button
+                                       variant="ghost" size="icon" className="h-8 w-8 rounded-lg"
+                                       onClick={() => handleEconomicChange('iva_porcentaje', Math.max(0, parseFloat(formData.iva_porcentaje) - 1))}
+                                    >
+                                       <Minus className="w-3 h-3" />
+                                    </Button>
+                                    <div className="flex items-center px-3">
+                                       <input
+                                          type="number"
+                                          className="w-10 text-center bg-transparent font-bold text-sm outline-none"
+                                          value={formData.iva_porcentaje}
+                                          onChange={(e) => handleEconomicChange('iva_porcentaje', e.target.value)}
+                                       />
+                                       <span className="text-xs font-bold text-slate-400">%</span>
+                                    </div>
+                                    <Button
+                                       variant="ghost" size="icon" className="h-8 w-8 rounded-lg"
+                                       onClick={() => handleEconomicChange('iva_porcentaje', parseFloat(formData.iva_porcentaje) + 1)}
+                                    >
+                                       <Plus className="w-3 h-3" />
+                                    </Button>
+                                 </div>
+                              )}
+                           </div>
+
+                           {formData.iva_incluido && (
+                              <div className="flex items-center gap-6 text-sm">
+                                 <div className="text-right">
+                                    <p className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">Base Imponible (Neto)</p>
+                                    <p className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                                       {formatCurrencyARS(formData.neto)}
+                                    </p>
+                                 </div>
+                                 <div className="text-right">
+                                    <p className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">IVA Calculado</p>
+                                    <p className="font-mono font-bold text-emerald-600">
+                                       {formatCurrencyARS(parseFloat(formData.monto_ars) - formData.neto)}
+                                    </p>
+                                 </div>
+                              </div>
+                           )}
                         </div>
                      </div>
                   </div>

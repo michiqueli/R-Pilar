@@ -10,9 +10,7 @@ export const kpisService = {
    * Obtiene los KPIs totales del proyecto usando la tabla unificada
    */
   async getKpisTotales(proyectoId) {
-    try {
-      console.log(`[kpisService] getKpisTotales: Fetching summary for project ${proyectoId}`);
-      
+    try {      
       // Utilizamos el servicio que ya sabe filtrar la tabla unificada
       const totals = await movimientosProyectoService.getTotalesProyecto(proyectoId);
       
@@ -24,7 +22,6 @@ export const kpisService = {
         flujo_neto: totals.flujoNeto
       };
       
-      console.log('[kpisService] getKpisTotales Result:', result);
       return result;
     } catch (error) {
       console.error('[kpisService] Error in getKpisTotales:', error);

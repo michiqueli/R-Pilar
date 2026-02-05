@@ -6,7 +6,6 @@ export const movimientosProyectoService = {
    * Obtiene todos los movimientos vinculados a un proyecto
    */
   async getMovimientosProyecto(proyectoId) {
-    console.log('[movimientosProyectoService] getMovimientosProyecto', proyectoId);
     try {
       // First try to get from the join table
       const { data: linkedData, error: linkedError } = await supabase
@@ -68,7 +67,6 @@ export const movimientosProyectoService = {
    * Vincula un movimiento existente a un proyecto
    */
   async vincularMovimientoProyecto(movimientoId, proyectoId) {
-    console.log('[movimientosProyectoService] vincularMovimientoProyecto', { movimientoId, proyectoId });
     try {
       // Check if already linked
       const { data: existing } = await supabase
@@ -78,7 +76,6 @@ export const movimientosProyectoService = {
         .maybeSingle();
 
       if (existing) {
-        console.log('Movimiento already linked, updating project...');
         // If already linked to another project, update it? Or ignore?
         // Constraint is unique on movimiento_id, so we update
         const { error } = await supabase
@@ -114,7 +111,6 @@ export const movimientosProyectoService = {
    * Calcula el balance mensual (Ingresos - Gastos) para un mes específico
    */
   async getBalanceMensualProyecto(proyectoId, mes, anio) {
-    console.log('[movimientosProyectoService] getBalanceMensualProyecto', { proyectoId, mes, anio });
     try {
       const movimientos = await this.getMovimientosConfirmados(proyectoId);
       
