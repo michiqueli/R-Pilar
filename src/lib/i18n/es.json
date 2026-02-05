@@ -94,6 +94,8 @@
     "drag_drop": "Arrastra y suelta un archivo aquí, o haz clic para seleccionar"
   },
   "projects": {
+    "editProject": "Editar Proyecto",
+    "newProject": "Nuevo Proyecto",
     "title": "Proyectos",
     "subtitle": "Gestiona y rastrea todos tus proyectos",
     "new": "Nuevo Proyecto",
