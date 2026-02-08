@@ -170,7 +170,10 @@
     "agregarDevolucion": "- Devolución de Inversión",
     "noAportesRegistrados": "No hay aportes registrados",
     "noDevoluciones": "No hay devoluciones registradas",
-    "saldoNetoInversion": "SALDO NETO DE INVERSIÓN"
+    "saldoNetoInversion": "SALDO NETO DE INVERSIÓN",
+    "emptyState_title": "No hay proyectos que coincidan con los filtros",
+    "emptyState_description": "Si no tienes filtros aplicados, crea un nuevo proyecto para comenzar a gestionar tu trabajo.",
+    "emptyState_clearButton": "Limpiar Filtros"
   },
   "tasks": {
     "title": "Gestión de Tareas",

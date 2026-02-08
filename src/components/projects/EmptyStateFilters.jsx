@@ -13,17 +13,17 @@ const EmptyStateFilters = ({ onClear }) => {
         <SearchX className="w-8 h-8 text-slate-400 dark:text-slate-500" />
       </div>
       <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-        {t('projects.emptyState.title')}
+        {t('projects.emptyState_title')}
       </h3>
       <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mb-6">
-        {t('projects.emptyState.description')}
+        {t('projects.emptyState_description')}
       </p>
       <Button 
         variant="outline" 
         onClick={onClear}
         className="min-w-[140px]"
       >
-        {t('projects.emptyState.clearButton')}
+        {t('projects.emptyState_clearButton')}
       </Button>
     </div>
   );
