@@ -48,13 +48,13 @@ export const tiposCambioService = {
 
     try {
       const { data, error } = await supabase
-        .from('user_config')
+        .from('configuracion')
         .select('*')
         .eq('user_id', userId)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') return null; // Not found
+        if (error.code === 'PGRST116') return null;
         throw error;
       }
 
@@ -80,7 +80,7 @@ export const tiposCambioService = {
       };
 
       const { error } = await supabase
-        .from('user_config')
+        .from('configuracion')
         .upsert(payload, { onConflict: 'user_id' });
 
       if (error) throw error;

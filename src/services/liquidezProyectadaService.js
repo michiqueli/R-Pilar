@@ -85,7 +85,7 @@ export const liquidezProyectadaService = {
       
       // Attempt to fetch balances from 'accounts' table which matches 'cuentas' IDs usually
       const { data: accountBalances } = await supabase
-        .from('accounts')
+        .from('cuentas')
         .select('id, balance');
 
       cuentas.forEach(c => {

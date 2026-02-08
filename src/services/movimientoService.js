@@ -192,7 +192,7 @@ export const movimientoService = {
         .select(`
           *,
           projects (id, name),
-          accounts (id, name, type, currency)
+          cuentas (id, name, type, currency)
         `)
         .eq('is_deleted', false);
 

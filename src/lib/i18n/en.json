@@ -12,7 +12,8 @@
     "analytics": "Analytics",
     "investors": "Investors",
     "reports": "Reports",
-    "settings": "Settings"
+    "settings": "Settings",
+    "users": "Users"
   },
   "sidebar": {
     "operation": "Operation",
@@ -359,7 +360,7 @@
     "accessPending": "Account pending approval.",
     "accessRejected": "Your access request has been rejected.",
     "invalidCredentials": "Invalid credentials.",
-    "welcomeUser": "Welcome, {name}",
+    "welcomeUser": "Welcome",
     "recoverPassword": "Recover Password",
     "recoverSubtitle": "Enter your email to receive instructions",
     "sendInstructions": "Send instructions",

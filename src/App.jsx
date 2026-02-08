@@ -35,6 +35,7 @@ import ConfiguracionPage from '@/pages/ConfiguracionPage';
 import CuentasPage from '@/pages/CuentasPage';
 import CuentaDetallePage from '@/pages/CuentaDetallePage';
 import InformesPage from '@/pages/InformesPage';
+import UsuariosPage from '@/pages/UsuariosPage'; // Nueva Página
 
 // Layout & Components
 import Sidebar from '@/components/layout/Sidebar.jsx'; 
@@ -159,6 +160,7 @@ function App() {
                         {/* Settings Routes */}
                         <Route path="/settings" element={<SettingsPage />} />
                         <Route path="/configuracion" element={<ConfiguracionPage />} />
+                        <Route path="/usuarios" element={<UsuariosPage />} />
 
                         {/* Deprecated/Redirected Routes */}
                         <Route path="/compras" element={<Navigate to="/providers" replace />} />

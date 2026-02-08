@@ -39,6 +39,13 @@ export const SIDEBAR_SECTIONS = [
   {
     title: 'system', // sidebar.system
     items: [
+      { 
+        name: 'users', 
+        path: '/usuarios', 
+        icon: Users, 
+        match: /^\/usuarios/, 
+        roleRequired: 'ADMINISTRADOR' // <-- Nueva propiedad
+      },
       { name: 'settings', path: '/settings', icon: Settings, match: /^\/settings/ }
     ]
   }

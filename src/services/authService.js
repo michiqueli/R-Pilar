@@ -100,9 +100,9 @@ export const authService = {
       user_id: authUser.id,
       email: authUser.email,
       nombre: authUser.email.split('@')[0],
-      estado: 'aceptado', 
+      estado: 'pendiente', 
       rol: 'TÉCNICO' 
-    };
+    };USD
 
     const { data, error } = await supabase
       .from('usuarios')

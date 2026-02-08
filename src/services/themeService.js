@@ -13,8 +13,8 @@ export const themeService = {
 
     try {
       const { data, error } = await supabase
-        .from('user_config')
-        .select('theme')
+        .from('configuracion')
+        .select('tema')
         .eq('user_id', userId)
         .single();
 
@@ -51,10 +51,10 @@ export const themeService = {
     try {
       // Upsert logic
       const { error } = await supabase
-        .from('user_config')
+        .from('configuracion')
         .upsert({ 
           user_id: userId, 
-          theme: theme,
+          tema: theme,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
 

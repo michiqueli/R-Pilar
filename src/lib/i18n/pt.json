@@ -12,7 +12,8 @@
     "analytics": "Análise",
     "investors": "Investidores",
     "reports": "Relatórios",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "users": "Usuários"
   },
   "sidebar": {
     "operation": "Operação",
@@ -352,7 +353,7 @@
     "accessPending": "Conta pendente de aprovação.",
     "accessRejected": "Sua solicitação de acesso foi rejeitada.",
     "invalidCredentials": "Credenciales inválidas.",
-    "welcomeUser": "Bem-vindo, {name}",
+    "welcomeUser": "Bem-vindo",
     "recoverPassword": "Recuperar Senha",
     "recoverSubtitle": "Insira seu e-mail para receber instruções",
     "sendInstructions": "Enviar instruções",

@@ -12,7 +12,7 @@ export const incomeService = {
     
     // Check both accounts and cuentas tables to be safe, or prefer accounts as per schema
     const { data, error } = await supabase
-      .from('accounts')
+      .from('cuentas')
       .select('id')
       .eq('id', accountId)
       .eq('is_deleted', false)
@@ -40,7 +40,7 @@ export const incomeService = {
       .select(`
         *,
         projects (id, name),
-        accounts (id, name)
+        cuentas (id, name)
       `)
       .eq('is_deleted', false)
       .order('income_date', { ascending: false });
@@ -59,7 +59,7 @@ export const incomeService = {
       .select(`
         *,
         projects (id, name),
-        accounts (id, name)
+        cuentas (id, name)
       `)
       .eq('id', id)
       .single();

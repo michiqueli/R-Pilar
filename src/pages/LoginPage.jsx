@@ -48,52 +48,57 @@ const LoginPage = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrors({});
-    
-    if (!validate()) return;
+  e.preventDefault();
+  setErrors({});
+  
+  if (!validate()) return;
 
-    setLoading(true);
-    try {
-      // Login using updated authService that handles profile checks internally
-      const result = await authService.loginWithEmail(formData.email, formData.password);
-      
-      if (result.success) {
-        toast({
-          title: t('auth.welcomeUser', { name: result.user?.nombre || 'Usuario' }),
-          description: t('auth.welcome'),
-          className: "bg-green-50 border-green-200"
-        });
+  setLoading(true);
+  try {
+    const result = await authService.loginWithEmail(formData.email, formData.password);
+    
+    if (result.success) {
+      // VALIDACIÓN DE ESTADO DE PERFIL
+      const access = authService.validateUserAccess(result.user);
+
+      if (!access.allowed) {
+        // Si no está permitido (pendiente o rechazado), cerramos la sesión de Supabase
+        // para que no quede un token válido en un perfil no activo
+        await authService.logout();
         
-        // Redirect logic based on Role
-        // Since we now ensure profile creation, result.user should be populated
-        if (result.user) {
-            navigate('/projects');
-        } else {
-            // Fallback if profile creation failed but auth succeeded
-            navigate('/projects');
-        }
-      } else {
-        // Show error but don't redirect
-        setErrors({ form: result.error });
+        setErrors({ form: access.message });
         toast({
-          variant: "destructive",
-          title: t('auth.error'),
-          description: result.error
+          variant: "warning", // Usamos warning para estados pendientes
+          title: t('auth.attention') || "Atención",
+          description: access.message // Aquí dirá "Acceso pendiente"
         });
+        setLoading(false);
+        return; // Detenemos el flujo aquí
       }
-    } catch (err) {
-      console.error(err);
-      setErrors({ form: t('auth.invalidCredentials') });
+
+      // Si llegó aquí, el acceso es permitido ('aceptado')
+      toast({
+        title: `${t('auth.welcomeUser')}, ${result.user?.nombre || 'Usuario'}`,
+        description: t('auth.welcome'),
+        className: "bg-green-50 border-green-200"
+      });
+      
+      navigate('/projects');
+    } else {
+      setErrors({ form: result.error });
       toast({
         variant: "destructive",
         title: t('auth.error'),
-        description: t('auth.invalidCredentials')
+        description: result.error
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err) {
+    console.error(err);
+    setErrors({ form: t('auth.invalidCredentials') });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-[#F5F5F5] p-4">
