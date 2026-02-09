@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, Shield, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -48,37 +49,59 @@ const UsuarioModal = ({ isOpen, onClose, onSuccess, user = null }) => {
 
   const handleSubmit = async () => {
     if (!formData.nombre || !formData.email) {
-      return toast({ variant: 'destructive', title: 'Error', description: 'Nombre y Email son obligatorios' });
+      return toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Nombre y Email son obligatorios'
+      });
     }
 
     setLoading(true);
     try {
-      const payload = {
-        ...formData,
-        updated_at: new Date().toISOString()
-      };
-
       if (user) {
-        // MODO EDICIÓN
+        // --- MODO EDICIÓN (Cliente normal) ---
         const { error } = await supabase
           .from('usuarios')
-          .update(payload)
+          .update({
+            nombre: formData.nombre,
+            rol: formData.rol,
+            estado: formData.estado,
+            telefono: formData.telefono,
+            fecha_actualizacion: new Date().toISOString()
+          })
           .eq('user_id', user.user_id);
+
         if (error) throw error;
+
       } else {
-        // MODO CREACIÓN (Nota: Aquí idealmente se crearía vía Auth primero, 
-        // pero este insert es para la tabla public.usuarios)
-        const { error } = await supabase
-          .from('usuarios')
-          .insert([{ ...payload }]);
-        if (error) throw error;
+        // --- MODO CREACIÓN (Cliente ADMIN) ---
+        // Solo lo creamos en Auth. El Trigger de tu DB hará el INSERT en public.usuarios.
+        const { error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email: formData.email,
+          password: 'Password123!', // Contraseña genérica inicial
+          email_confirm: true,      // Saltear verificación de email
+          user_metadata: {
+            nombre: formData.nombre,
+            rol: formData.rol
+          }
+        });
+
+        if (authError) throw authError;
       }
 
-      toast({ title: 'Éxito', description: `Usuario ${user ? 'actualizado' : 'creado'} correctamente` });
+      toast({
+        title: 'Éxito',
+        description: user ? 'Perfil actualizado' : 'Usuario creado y activado correctamente'
+      });
+
       onSuccess();
       onClose();
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message
+      });
     } finally {
       setLoading(false);
     }
@@ -177,9 +200,9 @@ const UsuarioModal = ({ isOpen, onClose, onSuccess, user = null }) => {
               <Button variant="ghost" onClick={onClose} disabled={loading}>
                 Cancelar
               </Button>
-              <Button 
-                variant="primary" 
-                onClick={handleSubmit} 
+              <Button
+                variant="primary"
+                onClick={handleSubmit}
                 loading={loading}
                 className="rounded-full px-8 bg-blue-600 hover:bg-blue-700 text-white"
               >
