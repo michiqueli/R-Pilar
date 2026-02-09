@@ -220,6 +220,29 @@ export const projectService = {
     return data;
   },
 
+  async updateWorkPlan(id, workPlanData) {
+    const { name, description, progress, budget, status } = workPlanData;
+    const updatePayload = {
+        updated_at: new Date().toISOString()
+    };
+    
+    if (name) updatePayload.nombre = name;
+    if (description !== undefined) updatePayload.descripcion = description;
+    if (progress !== undefined) updatePayload.progreso = progress;
+    if (budget !== undefined) updatePayload.presupuesto = budget;
+    if (status !== undefined) updatePayload.estado = status;
+
+    const { data, error } = await supabase
+      .from('work_items')
+      .update(updatePayload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
   async updateWorkItem(id, workItemData) {
     const { name, description, progress, budget, status } = workItemData;
     const updatePayload = {

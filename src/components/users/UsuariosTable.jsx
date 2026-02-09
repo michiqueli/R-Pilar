@@ -13,7 +13,7 @@ const UsuariosTable = ({ users, columns, onReload, onEdit }) => {
     try {
       const { error } = await supabase
         .from('usuarios')
-        .update({ [field]: value, fecha_actualizacion: new Date().toISOString() })
+        .update({ [field]: value, updated_at: new Date().toISOString() })
         .eq('user_id', userId);
 
       if (error) throw error;
