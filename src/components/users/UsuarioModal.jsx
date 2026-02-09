@@ -67,7 +67,7 @@ const UsuarioModal = ({ isOpen, onClose, onSuccess, user = null }) => {
             rol: formData.rol,
             estado: formData.estado,
             telefono: formData.telefono,
-            fecha_actualizacion: new Date().toISOString()
+            updated_at: new Date().toISOString()
           })
           .eq('user_id', user.user_id);
 
