@@ -186,6 +186,30 @@ const PlanDeObraTab = ({ projectId }) => {
     }
   };
 
+  const handleUpdateSubpartida = async (updatedData) => {
+  try {
+    // 1. Llamamos al servicio con los datos que vienen del modal
+    await subpartidaService.updateSubpartida(updatedData.id, {
+      nombre: updatedData.nombre,
+      presupuesto: updatedData.presupuesto
+    });
+
+    toast({ title: 'Sub-partida actualizada correctamente.' });
+
+    // 2. Recargamos todo para que se actualicen los totales de la partida padre
+    await loadAllData(); 
+  } catch (error) {
+    console.error("Error al actualizar subpartida:", error);
+    toast({ 
+      variant: 'destructive', 
+      title: 'Error', 
+      description: 'No se pudo guardar en la base de datos.' 
+    });
+    // Lanzamos el error para que el modal no se cierre (mantiene el loading del botón)
+    throw error; 
+  }
+};
+
   // Handlers de acciones
   const handleAddSubpartida = (e, partidaId) => { e.stopPropagation(); setActivePartidaIdForSub(partidaId); setSubModalOpen(true); }
   const handleOpenEditSubModal = (e, sub) => { e.stopPropagation(); setEditingSubPartida(sub); setEditSubModalOpen(true); };
@@ -367,7 +391,7 @@ const PlanDeObraTab = ({ projectId }) => {
         item={partidaToEdit}
       />
       <SubpartidaModal isOpen={subModalOpen} onClose={() => setSubModalOpen(false)} partidaId={activePartidaIdForSub} onSuccess={() => loadAllData()} />
-      <EditarSubPartidaModal isOpen={editSubModalOpen} onClose={() => setEditSubModalOpen(false)} subPartida={editingSubPartida} onActualizar={() => loadAllData()} />
+      <EditarSubPartidaModal isOpen={editSubModalOpen} onClose={() => setEditSubModalOpen(false)} subPartida={editingSubPartida} onActualizar={handleUpdateSubpartida} />
       <AsignarPresupuestoModal isOpen={budgetModalOpen} onClose={() => setBudgetModalOpen(false)} partida={partidaForBudget} onAsignar={handleAsignarPresupuesto} />
       <SelectPlantillaModal isOpen={showSelectPlantilla} onClose={() => setShowSelectPlantilla(false)} onSuccess={() => loadAllData()} proyectoId={projectId} />
     </div>
