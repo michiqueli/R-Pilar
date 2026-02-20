@@ -15,6 +15,13 @@
     "settings": "Configuración",
     "users": "Usuarios"
   },
+  "users": {
+    "profile": "Perfil",
+    "settings": "Configuración",
+    "logout": "Cerrar Sesión",
+    "title": "Gestion de usuarios",
+    "create": "Nuevo Usuario"
+  },
   "sidebar": {
     "operation": "Operación",
     "purchasing": "Compras",

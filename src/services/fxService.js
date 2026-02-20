@@ -1,6 +1,5 @@
 
 import { tiposCambioService } from './tiposCambioService';
-import { supabase } from '@/lib/customSupabaseClient';
 
 export const fxService = {
   /**

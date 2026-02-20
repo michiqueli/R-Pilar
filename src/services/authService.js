@@ -161,22 +161,5 @@ export const authService = {
     });
     if (error) throw error;
     return true;
-  },
-
-  // Request Access
-  async requestAccess(requestData) {
-    const { error } = await supabase
-      .from('solicitudes_acceso')
-      .insert([{
-        nombre: requestData.nombre,
-        email: requestData.email,
-        empresa: requestData.empresa,
-        telefono: requestData.telefono,
-        mensaje: requestData.mensaje,
-        estado: 'pendiente'
-      }]);
-    
-    if (error) throw error;
-    return true;
   }
 };
