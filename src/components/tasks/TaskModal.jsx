@@ -7,13 +7,14 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { tokens } from '@/lib/designTokens';
+import { cn } from '@/lib/utils';
 
 function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedProjectId = null }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [catalogsLoading, setCatalogsLoading] = useState(true);
   const [projects, setProjects] = useState([]);
-  const [users, setUsers] = useState([]); // Estado para usuarios reales
+  const [users, setUsers] = useState([]);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -25,13 +26,11 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
     priority: 'MEDIA'
   });
 
-  // 1. Carga de Catálogos Reales (Proyectos y Usuarios)
   useEffect(() => {
     if (isOpen) {
       const fetchCatalogs = async () => {
         setCatalogsLoading(true);
         try {
-          // Ejecutamos ambas consultas en paralelo para mayor velocidad
           const [projectsRes, usersRes] = await Promise.all([
             supabase.from('projects').select('id, name').eq('is_deleted', false).order('name'),
             supabase.from('usuarios').select('id, nombre').order('nombre')
@@ -43,7 +42,6 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
           setProjects(projectsRes.data || []);
           setUsers(usersRes.data || []);
 
-          // Inicialización del formulario
           if (taskToEdit) {
             setFormData({
               title: taskToEdit.nombre || '',
@@ -59,7 +57,7 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
               title: '',
               description: '',
               project_id: preselectedProjectId || '',
-              assigned_to: '', // Empezamos vacío para forzar selección
+              assigned_to: '',
               due_date: '',
               status: 'PENDIENTE',
               priority: 'MEDIA'
@@ -67,31 +65,28 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
           }
         } catch (error) {
           console.error("Error cargando catálogos:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los usuarios o proyectos.' });
+          toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
         } finally {
           setCatalogsLoading(false);
         }
       };
-
       fetchCatalogs();
     }
   }, [isOpen, taskToEdit, preselectedProjectId, toast]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!formData.title.trim()) {
       return toast({ variant: 'destructive', title: 'Error', description: 'El título es obligatorio.' });
     }
 
     setLoading(true);
-    
     try {
       const payload = {
         nombre: formData.title,
         descripcion: formData.description,
         proyecto_id: preselectedProjectId || formData.project_id || null,
-        asignado_a: formData.assigned_to || null, // Guardamos el nombre o ID real
+        asignado_a: formData.assigned_to || null,
         estado: formData.status,
         prioridad: formData.priority,
         fecha_vencimiento: formData.due_date === '' ? null : formData.due_date,
@@ -99,41 +94,28 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
       };
 
       let error;
-
       if (taskToEdit) {
-        const { error: updateError } = await supabase
-          .from('tareas')
-          .update(payload)
-          .eq('id', taskToEdit.id);
+        const { error: updateError } = await supabase.from('tareas').update(payload).eq('id', taskToEdit.id);
         error = updateError;
       } else {
         payload.fecha_creacion = new Date().toISOString();
-        const { error: insertError } = await supabase
-          .from('tareas')
-          .insert([payload]);
+        const { error: insertError } = await supabase.from('tareas').insert([payload]);
         error = insertError;
       }
       
       if (error) throw error;
-
-      toast({ 
-        title: 'Éxito', 
-        description: taskToEdit ? 'Tarea actualizada.' : 'Tarea creada correctamente.' 
-      });
-
+      toast({ title: 'Éxito', description: taskToEdit ? 'Tarea actualizada.' : 'Tarea creada correctamente.' });
       onClose(); 
       if (onSuccess) onSuccess(); 
-      
     } catch (error) {
-      toast({ 
-        variant: 'destructive', 
-        title: 'Error', 
-        description: error.message || 'No se pudo guardar la tarea.' 
-      });
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
     } finally {
       setLoading(false);
     }
   };
+
+  // Clase común para los select y textarea para no repetir código
+  const inputClasses = "w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none transition-colors";
 
   return (
     <AnimatePresence>
@@ -151,23 +133,24 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 {taskToEdit ? 'Editar Tarea' : 'Nueva Tarea'}
               </h2>
-              <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+              <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                 <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
 
-            {/* Form */}
-            <div className="p-6 space-y-6 bg-slate-50/50">
+            {/* Form Content */}
+            <div className="p-6 space-y-6 bg-slate-50/50 dark:bg-slate-900/50">
               {catalogsLoading ? (
                 <div className="py-10 flex flex-col items-center gap-3">
                   <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                  <p className="text-sm text-slate-500 font-medium">Cargando personal...</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Cargando personal...</p>
                 </div>
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label>Título <span className="text-red-500">*</span></Label>
+                    <Label className="dark:text-slate-300">Título <span className="text-red-500">*</span></Label>
                     <Input 
+                      className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                       value={formData.title} 
                       onChange={(e) => setFormData({...formData, title: e.target.value})} 
                       placeholder="Ej: Revisar presupuesto de obra"
@@ -177,11 +160,11 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label>Responsable</Label>
+                      <Label className="dark:text-slate-300">Responsable</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                         <select 
-                          className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                          className={cn(inputClasses, "pl-9 pr-4 py-2 appearance-none")}
                           value={formData.assigned_to}
                           onChange={(e) => setFormData({...formData, assigned_to: e.target.value})}
                         >
@@ -193,11 +176,11 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>Proyecto</Label>
+                      <Label className="dark:text-slate-300">Proyecto</Label>
                       <div className="relative">
                         <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                         <select 
-                          className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                          className={cn(inputClasses, "pl-9 pr-4 py-2 appearance-none disabled:opacity-50")}
                           value={formData.project_id}
                           onChange={(e) => setFormData({...formData, project_id: e.target.value})}
                           disabled={!!preselectedProjectId}
@@ -211,12 +194,11 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
                     </div>
                   </div>
 
-                  {/* Resto de campos (Estado, Prioridad, Fecha) mantienen la misma estructura */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                      <div className="space-y-2">
-                        <Label>Estado</Label>
+                        <Label className="dark:text-slate-300">Estado</Label>
                         <select 
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                          className={cn(inputClasses, "px-3 py-2")}
                           value={formData.status}
                           onChange={(e) => setFormData({...formData, status: e.target.value})}
                         >
@@ -226,9 +208,9 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
                         </select>
                      </div>
                      <div className="space-y-2">
-                        <Label>Prioridad</Label>
+                        <Label className="dark:text-slate-300">Prioridad</Label>
                         <select 
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                          className={cn(inputClasses, "px-3 py-2")}
                           value={formData.priority}
                           onChange={(e) => setFormData({...formData, priority: e.target.value})}
                         >
@@ -238,9 +220,10 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
                         </select>
                      </div>
                      <div className="space-y-2">
-                        <Label>Fecha Límite</Label>
+                        <Label className="dark:text-slate-300">Fecha Límite</Label>
                         <Input 
                           type="date" 
+                          className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                           value={formData.due_date}
                           onChange={(e) => setFormData({...formData, due_date: e.target.value})}
                         />
@@ -248,9 +231,9 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
                   </div>
 
                   <div className="space-y-2">
-                     <Label>Descripción</Label>
+                     <Label className="dark:text-slate-300">Descripción</Label>
                      <textarea 
-                        className="w-full min-h-[100px] rounded-xl border border-slate-200 p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-y"
+                        className={cn(inputClasses, "p-3 min-h-[100px] resize-y")}
                         placeholder="Detalles adicionales..."
                         value={formData.description}
                         onChange={(e) => setFormData({...formData, description: e.target.value})}
@@ -261,9 +244,20 @@ function TaskModal({ isOpen, onClose, onSuccess, taskToEdit = null, preselectedP
             </div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-white">
-               <Button variant="outline" onClick={onClose} className="rounded-full px-6">Cancelar</Button>
-               <Button variant="primary" onClick={handleSubmit} loading={loading} className="rounded-full px-8">
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-white dark:bg-slate-900">
+               <Button 
+                variant="outline" 
+                onClick={onClose} 
+                className="rounded-full px-6 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+               >
+                Cancelar
+               </Button>
+               <Button 
+                variant="primary" 
+                onClick={handleSubmit} 
+                loading={loading} 
+                className="rounded-full px-8 bg-blue-600 hover:bg-blue-700"
+               >
                  {taskToEdit ? 'Guardar Cambios' : 'Crear Tarea'}
                </Button>
             </div>

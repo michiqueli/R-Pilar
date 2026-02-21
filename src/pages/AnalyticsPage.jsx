@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card } from '@/components/ui/Card';
 import { formatCurrencyARS, formatCurrencyUSD } from '@/lib/formatUtils';
 import { analiticaService } from '@/services/analiticaService';
-import PageHeader from '@/components/layout/PageHeader';
-
+import { cn } from '@/lib/utils'; 
+import { useTheme } from '@/contexts/ThemeProvider';
 // Componentes del módulo
 import AnalyticsKPICards from '@/components/analytics/AnalyticsKPICards';
 import ComposicionModal from '@/components/analytics/ComposicionModal';
@@ -19,6 +19,7 @@ import RankingObras from '@/components/analytics/RankingObras';
 
 const AnalyticsPage = () => {
   const { toast } = useToast();
+  const { t } = useTheme();
   const [loading, setLoading] = useState(true);
 
   // Estados de Filtros
@@ -102,72 +103,83 @@ const AnalyticsPage = () => {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-7xl mx-auto space-y-8"
       >
-
-        {/* 1. Header & Filtros Modernos */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-          <PageHeader
-            title="Analítica Financiera"
-            description="Monitoreo de rendimiento, flujo de fondos y rentabilidad de proyectos."
-          />
-
-          {/* Panel de Control de Filtros */}
-          <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
-              <button
-                onClick={() => setPeriodo('mes')}
-                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${periodo === 'mes' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500'
-                  }`}
-              >
-                Mensual
-              </button>
-              <button
-                onClick={() => setPeriodo('anio')}
-                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${periodo === 'anio' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500'
-                  }`}
-              >
-                Anual
-              </button>
-            </div>
-
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger className="w-[100px] h-9 text-xs border-none bg-slate-50 dark:bg-slate-800 rounded-xl font-bold">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                {[0, 1, 2, 3, 4].map(i => {
-                  const y = new Date().getFullYear() - i;
-                  return <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                })}
-              </SelectContent>
-            </Select>
-
-            {periodo === 'mes' && (
-              <Select value={month} onValueChange={setMonth}>
-                <SelectTrigger className="w-[120px] h-9 text-xs border-none bg-slate-50 dark:bg-slate-800 rounded-xl font-bold">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <SelectItem key={i + 1} value={(i + 1).toString()}>
-                      {new Date(0, i).toLocaleString('es-ES', { month: 'long' })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
-
-            <Select value={moneda} onValueChange={setMoneda}>
-              <SelectTrigger className="w-[100px] h-9 text-xs font-bold text-blue-600 border-none bg-blue-50 dark:bg-blue-900/30 rounded-xl">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="ARS">🇦🇷 ARS</SelectItem>
-                <SelectItem value="USD">🇺🇸 USD</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* 1. Header Directo (Estilo Usuarios) */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-[32px] font-bold text-[#1F2937] dark:text-white leading-tight">
+              {t('analitica.title') || 'Analítica Financiera'}
+            </h1>
+            <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-2.5 py-0.5 rounded-full font-bold shadow-sm">
+              {moneda}
+            </span>
           </div>
+
+          {/* Aquí podrías poner un botón de imprimir o exportar si quisieras seguir el patrón exacto */}
+        </div>
+
+        {/* 2. Unified Control Bar (Contiene los filtros que antes estaban en el header) */}
+        <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-2">
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+            <button
+              onClick={() => setPeriodo('mes')}
+              className={cn(
+                "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+                periodo === 'mes' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500'
+              )}
+            >
+              Mensual
+            </button>
+            <button
+              onClick={() => setPeriodo('anio')}
+              className={cn(
+                "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+                periodo === 'anio' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500'
+              )}
+            >
+              Anual
+            </button>
+          </div>
+
+          <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block" />
+
+          <Select value={year} onValueChange={setYear}>
+            <SelectTrigger className="w-[100px] h-9 text-xs border-none bg-slate-50 dark:bg-slate-800 rounded-xl font-bold">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              {[0, 1, 2, 3, 4].map(i => {
+                const y = new Date().getFullYear() - i;
+                return <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+              })}
+            </SelectContent>
+          </Select>
+
+          {periodo === 'mes' && (
+            <Select value={month} onValueChange={setMonth}>
+              <SelectTrigger className="w-[120px] h-9 text-xs border-none bg-slate-50 dark:bg-slate-800 rounded-xl font-bold">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                {Array.from({ length: 12 }, (_, i) => (
+                  <SelectItem key={i + 1} value={(i + 1).toString()}>
+                    {new Date(0, i).toLocaleString('es-ES', { month: 'long' })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          <div className="flex-1" /> {/* Espaciador */}
+
+          <Select value={moneda} onValueChange={setMoneda}>
+            <SelectTrigger className="w-[100px] h-9 text-xs font-bold text-blue-600 border-none bg-blue-50 dark:bg-blue-900/30 rounded-xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="ARS">🇦🇷 ARS</SelectItem>
+              <SelectItem value="USD">🇺🇸 USD</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* 2. KPIs Grid - Pasamos datos al componente que tiene las barritas */}

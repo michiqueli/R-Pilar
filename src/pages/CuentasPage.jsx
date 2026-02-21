@@ -114,7 +114,7 @@ const CuentasPage = () => {
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
             <div className="flex items-center gap-3">
-              <h1 className="text-[32px] font-bold text-[#1F2937] dark:text-white leading-tight">Cuentas</h1>
+              <h1 className="text-[32px] font-bold text-[#1F2937] dark:text-white leading-tight">{t('cuentas.title') || 'Cuentas'}</h1>
               <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-2.5 py-0.5 rounded-full font-bold">
                 {cuentas.length}
               </span>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import PageHeader from '@/components/layout/PageHeader';
 import CarouselMovimientos from '@/components/CarouselMovimientos';
 import MovimientosTesoreriaTable from '@/components/movimientos/MovimientosTesoreriaTable';
 import ViewMovementModal from '@/components/modals/ViewMovementModal';
@@ -14,7 +13,7 @@ import BulkActionsBar from '@/components/movimientos/BulkActionsBar';
 
 import KpiCard from '@/components/ui/KpiCard';
 import { Button } from '@/components/ui/Button';
-import { Clock, Wallet, Upload } from 'lucide-react';
+import { Clock, Wallet, Upload, RefreshCw, Plus } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrencyARS } from '@/lib/formatUtils';
 
@@ -23,9 +22,12 @@ import { movimientoService } from '@/services/movimientoService';
 import { liquidezProyectadaService } from '@/services/liquidezProyectadaService';
 import { cuentaService } from '@/services/cuentaService';
 import { supabase } from '@/lib/customSupabaseClient';
+import { cn } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 const MovimientosTesoreriaPage = () => {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
@@ -162,16 +164,39 @@ const MovimientosTesoreriaPage = () => {
   const cuentasEnRiesgo = estadoCuentas.filter(c => c.en_riesgo).length;
 
   return (
-    <div className="min-h-screen p-6 md:p-8 bg-slate-50/50 dark:bg-[#111827] transition-colors duration-200 font-sans">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto space-y-8"
-      >
-        <PageHeader 
-          title="Movimientos y Tesorería" 
-          description="Gestión financiera, proyección de liquidez y control de cuentas."
-        />
+  <div className="min-h-screen p-6 md:p-8 bg-slate-50/50 dark:bg-[#111827] transition-colors duration-200 font-sans">
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-7xl mx-auto space-y-8"
+    >
+      {/* 1. Header Directo (Estilo Usuarios) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-3">
+          <h1 className="text-[32px] font-bold text-[#1F2937] dark:text-white leading-tight">
+           {t('tesoreria.title') || 'Movimientos y Tesorería'}
+          </h1>
+          <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-2.5 py-0.5 rounded-full font-bold shadow-sm">
+            {todosMovimientos.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            className="rounded-full h-11 w-11 p-0 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+          >
+            <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+          </Button>
+          <Button 
+            onClick={() => navigate('/movements/new')} 
+            className="rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 px-6 h-11 font-bold"
+          >
+            <Plus className="w-5 h-5 mr-2" /> Nuevo Movimiento
+          </Button>
+        </div>
+      </div>
 
         {/* NEW: Recurrencias Pendientes Panel */}
         <RecurrenciasPendientesPanel onRefresh={handleRefresh} />

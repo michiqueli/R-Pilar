@@ -8,7 +8,7 @@ export const themeService = {
 
   async getThemePreference(userId) {
     if (!userId) {
-      return localStorage.getItem('theme_preference') || this.getDefaultTheme();
+      return localStorage.getItem('vite-ui-theme') || this.getDefaultTheme();
     }
 
     try {
@@ -23,18 +23,18 @@ export const themeService = {
       }
 
       if (data?.theme) {
-        localStorage.setItem('theme_preference', data.theme); // Sync local
+        localStorage.setItem('vite-ui-theme', data.theme); // Sync local
         return data.theme;
       }
     } catch (err) {
       console.error('Unexpected error fetching theme:', err);
     }
 
-    return localStorage.getItem('theme_preference') || this.getDefaultTheme();
+    return localStorage.getItem('vite-ui-theme') || this.getDefaultTheme();
   },
 
   async saveThemePreference(userId, theme) {
-    localStorage.setItem('theme_preference', theme);
+    localStorage.setItem('vite-ui-theme', theme);
     
     // Apply immediately to DOM for responsiveness
     const root = window.document.documentElement;

@@ -15,6 +15,9 @@
     "settings": "Configuración",
     "users": "Usuarios"
   },
+  "analitica": {
+    "title": "Analítica Financiera"
+  },
   "users": {
     "profile": "Perfil",
     "settings": "Configuración",
@@ -22,6 +25,14 @@
     "title": "Gestion de usuarios",
     "create": "Nuevo Usuario",
     "search":"Buscar Usuarios..."
+  },
+  "tesoreria": {
+    "title": "Movimientos y Tesorería",
+    "subtitle": "Monitorea y gestiona el flujo de caja de tu empresa",
+    "ingresos": "Ingresos",
+    "egresos": "Egresos",
+    "liquidezProyectada": "Liquidez Proyectada",
+    "nuevoMovimiento": "Nuevo Movimiento"
   },
   "sidebar": {
     "operation": "Operación",
@@ -278,7 +289,7 @@
     "totalReturned": "Total Devuelto"
   },
   "cuentas": {
-    "title": "Cuentas",
+    "title": "Gestión de Cuentas",
     "addCuenta": "Agregar Cuenta",
     "newCuenta": "Nueva Cuenta",
     "editCuenta": "Editar Cuenta",

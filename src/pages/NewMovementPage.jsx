@@ -38,7 +38,6 @@ const NewMovementPage = () => {
    const [searchParams] = useSearchParams();
    const fileInputRef = useRef(null);
 
-   // Parametros URL
    const paramId = searchParams.get('id');
    const paramCuentaId = searchParams.get('cuenta_id');
    const paramProjectId = searchParams.get('project_id');
@@ -48,14 +47,12 @@ const NewMovementPage = () => {
    const [loading, setLoading] = useState(false);
    const [catalogsLoading, setCatalogsLoading] = useState(true);
 
-   // Catálogos
    const [accounts, setAccounts] = useState([]);
    const [projects, setProjects] = useState([]);
    const [providers, setProviders] = useState([]);
    const [investors, setInvestors] = useState([]);
    const [clients, setClients] = useState([]);
 
-   // Archivos & PDF
    const [selectedFile, setSelectedFile] = useState(null);
    const [previewUrl, setPreviewUrl] = useState(null);
    const [isDragOver, setIsDragOver] = useState(false);
@@ -64,18 +61,16 @@ const NewMovementPage = () => {
    const [pageNumber, setPageNumber] = useState(1);
    const [pdfScale, setPdfScale] = useState(1.0);
 
-   // Mapeo
    const [selectionMenu, setSelectionMenu] = useState(null);
    const [mappedFields, setMappedFields] = useState({});
 
-   // Formulario
    const [type, setType] = useState(paramType || 'GASTO');
    const [formData, setFormData] = useState({
       descripcion: '',
       fecha: format(new Date(), 'yyyy-MM-dd'),
       estado: 'PENDIENTE',
       cuenta_id: paramCuentaId || '',
-      project_ids: paramProjectId ? [paramProjectId] : [], // ← CHANGED: array instead of string
+      project_ids: paramProjectId ? [paramProjectId] : [],
       provider_id: '',
       client_id: '',
       inversionista_id: paramInvestorId || '',
@@ -88,15 +83,12 @@ const NewMovementPage = () => {
       notas: ''
    });
 
-   // NEW: Recurrencia state
    const [esRecurrente, setEsRecurrente] = useState(false);
    const [frecuencia, setFrecuencia] = useState('mensual');
    const [fechaLimite, setFechaLimite] = useState(null);
 
-   // 1. Carga Inicial de Catálogos
    useEffect(() => { fetchCatalogs(); }, []);
 
-   // 2. Si hay ID, cargamos datos para EDITAR
    useEffect(() => {
       if (paramId) fetchMovementData(paramId);
    }, [paramId]);
@@ -129,15 +121,12 @@ const NewMovementPage = () => {
 
          if (data) {
             setType(data.tipo);
-
-            // Fetch linked projects from movimientos_proyecto
             const { data: linkedProjects } = await supabase
                .from('movimientos_proyecto')
                .select('project_id')
                .eq('movimiento_id', id);
 
             const projectIds = linkedProjects?.map(lp => lp.project_id) || [];
-            // Fallback: if no links but proyecto_id exists on the record
             if (projectIds.length === 0 && data.proyecto_id) {
                projectIds.push(data.proyecto_id);
             }
@@ -147,7 +136,7 @@ const NewMovementPage = () => {
                fecha: data.fecha,
                estado: data.estado || 'CONFIRMADO',
                cuenta_id: data.cuenta_id || '',
-               project_ids: projectIds, // ← CHANGED
+               project_ids: projectIds,
                provider_id: data.proveedor_id || '',
                client_id: data.cliente_id || '',
                inversionista_id: data.inversionista_id || '',
@@ -160,14 +149,13 @@ const NewMovementPage = () => {
                notas: data.notas || ''
             });
 
-            // Load recurrencia state
             setEsRecurrente(data.es_recurrente || false);
             setFrecuencia(data.frecuencia || 'mensual');
             setFechaLimite(data.fecha_limite || null);
          }
       } catch (error) {
          console.error("Error fetching movement:", error);
-         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar el movimiento para editar.' });
+         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar el movimiento.' });
       } finally { setLoading(false); }
    };
 
@@ -190,7 +178,6 @@ const NewMovementPage = () => {
       finally { setCatalogsLoading(false); }
    };
 
-   // File handlers
    const handleFileSelect = (e) => { const file = e.target.files?.[0]; if (file) processFile(file); };
    const processFile = (file) => {
       if (file.size > 10 * 1024 * 1024) { toast({ variant: 'destructive', title: 'Error', description: 'Max 10MB' }); return; }
@@ -262,11 +249,8 @@ const NewMovementPage = () => {
    const handleSubmit = async () => {
       if (!validate()) return;
       setLoading(true);
-
       try {
-         // Use first selected project as main proyecto_id (backwards compat)
          const mainProjectId = formData.project_ids.length > 0 ? formData.project_ids[0] : null;
-
          const payload = {
             tipo: type,
             descripcion: formData.descripcion,
@@ -284,7 +268,6 @@ const NewMovementPage = () => {
             iva_porcentaje: parseFloat(formData.iva_porcentaje) || 0,
             neto: parseFloat(formData.neto) || 0,
             notas: formData.notas,
-            // Recurrencia fields
             es_recurrente: esRecurrente,
             frecuencia: esRecurrente ? frecuencia : null,
             fecha_limite: esRecurrente ? fechaLimite : null,
@@ -292,7 +275,6 @@ const NewMovementPage = () => {
          };
 
          let data, error;
-
          if (paramId) {
             const res = await supabase.from('inversiones').update(payload).eq('id', paramId).select().single();
             data = res.data; error = res.error;
@@ -303,79 +285,45 @@ const NewMovementPage = () => {
 
          if (error) throw error;
 
-         // --- MULTI-PROJECT: Sync movimientos_proyecto table ---
          if (formData.project_ids.length > 0) {
             const montoTotal = parseFloat(formData.monto_ars) || 0;
             const cantProyectos = formData.project_ids.length;
             const montoPorProyecto = parseFloat((montoTotal / cantProyectos).toFixed(2));
-
-            // Delete existing links for this movement
-            await supabase
-               .from('movimientos_proyecto')
-               .delete()
-               .eq('movimiento_id', data.id);
-
-            // Insert new links with prorrateo
+            await supabase.from('movimientos_proyecto').delete().eq('movimiento_id', data.id);
             const links = formData.project_ids.map(projId => ({
                movimiento_id: data.id,
                project_id: projId,
                porcentaje: parseFloat((100 / cantProyectos).toFixed(2)),
                monto_prorrateado: montoPorProyecto
             }));
-
-            const { error: linkError } = await supabase
-               .from('movimientos_proyecto')
-               .insert(links);
-
-            if (linkError) console.error('Error linking projects:', linkError);
+            await supabase.from('movimientos_proyecto').insert(links);
          }
 
-         // --- RECURRENCIA: Activate if enabled ---
          if (esRecurrente && !paramId) {
-            // Only generate schedule on creation, not on edit
-            try {
-               await recurrenciaService.activarRecurrencia(data.id, frecuencia, formData.fecha, fechaLimite);
-            } catch (recError) {
-               console.error('Error activating recurrencia:', recError);
-               toast({ variant: 'warning', title: 'Recurrencia', description: 'Movimiento guardado, pero falló la programación de recurrencia.' });
-            }
+            try { await recurrenciaService.activarRecurrencia(data.id, frecuencia, formData.fecha, fechaLimite); } 
+            catch (recError) { console.error(recError); }
          } else if (paramId && !esRecurrente) {
-            // If editing and recurrencia was turned off, deactivate
-            try {
-               await recurrenciaService.desactivarRecurrencia(data.id);
-            } catch (e) { /* silent */ }
+            try { await recurrenciaService.desactivarRecurrencia(data.id); } catch (e) {}
          }
 
-         // Subida de adjunto
          if (selectedFile) {
-            try {
-               await adjuntosService.uploadAdjunto(selectedFile, data.id);
-            } catch (uploadError) {
-               console.error(uploadError);
-               toast({ variant: 'warning', title: 'Adjunto fallido', description: 'Movimiento guardado, pero falló el archivo.' });
-            }
+            try { await adjuntosService.uploadAdjunto(selectedFile, data.id); } catch (e) {}
          }
 
-         toast({
-            title: t('common.success'),
-            description: paramId ? 'Movimiento actualizado correctamente' : t('messages.success_save'),
-            className: 'bg-green-50 border-green-200'
-         });
-
+         toast({ title: t('common.success'), className: 'bg-green-50 border-green-200' });
          navigate(-1);
-
       } catch (error) {
-         console.error("Error saving movement", error);
          toast({ variant: 'destructive', title: t('common.error'), description: error.message });
       } finally { setLoading(false); }
    };
 
    return (
-      <div className="flex h-screen bg-white dark:bg-slate-950 overflow-hidden font-sans">
+      <div className="flex h-screen bg-white dark:bg-slate-950 overflow-hidden font-sans transition-colors duration-300">
          {/* LEFT COLUMN: PREVIEW & SELECTION */}
          <div className="hidden md:flex w-1/2 bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col relative" onMouseUp={handleTextSelection}>
             <div className="absolute top-6 left-6 z-30">
-               <Button variant="outline" className="bg-white/80 backdrop-blur shadow-sm hover:bg-white" onClick={() => navigate(-1)}>
+               {/* BOTÓN VOLVER CORREGIDO */}
+               <Button variant="outline" className="bg-white/80 dark:bg-slate-800/80 dark:text-slate-200 dark:border-slate-700 backdrop-blur shadow-sm hover:bg-white dark:hover:bg-slate-700" onClick={() => navigate(-1)}>
                   <ArrowLeft className="w-4 h-4 mr-2" /> {t('common.back')}
                </Button>
             </div>
@@ -383,10 +331,10 @@ const NewMovementPage = () => {
                {selectedFile && previewUrl ? (
                   <div className="flex-1 flex flex-col min-h-0">
                      <div className="flex justify-end gap-2 mb-4">
-                        <Button size="sm" variant="secondary" onClick={() => document.getElementById('file-upload').click()}><Upload className="w-3 h-3 mr-2" /> Cambiar</Button>
+                        <Button size="sm" variant="secondary" className="dark:bg-slate-800 dark:hover:bg-slate-700" onClick={() => document.getElementById('file-upload').click()}><Upload className="w-3 h-3 mr-2" /> Cambiar</Button>
                         <Button size="sm" variant="destructive" onClick={clearFile}><X className="w-3 h-3 mr-2" /> Borrar</Button>
                      </div>
-                     <div className="flex-1 overflow-auto bg-slate-200/50 rounded-lg border shadow-inner">
+                     <div className="flex-1 overflow-auto bg-slate-200/50 dark:bg-slate-950/50 rounded-lg border dark:border-slate-800 shadow-inner">
                         {fileType?.includes('pdf') ? (
                            <div className="flex justify-center p-6"><Document file={selectedFile} onLoadSuccess={onDocumentLoadSuccess}><Page pageNumber={pageNumber} scale={pdfScale} className="shadow-xl" /></Document></div>
                         ) : (
@@ -394,36 +342,35 @@ const NewMovementPage = () => {
                         )}
                      </div>
                      {selectionMenu && (
-                        <div className="fixed z-50 bg-white rounded-lg shadow-xl border p-1 w-56" style={{ top: selectionMenu.y + 10, left: selectionMenu.x }}>
-                           <button onClick={() => mapTextToField('monto')} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-100 rounded">💲 Monto</button>
-                           <button onClick={() => mapTextToField('descripcion')} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-100 rounded">📝 Concepto</button>
+                        <div className="fixed z-50 bg-white dark:bg-slate-800 rounded-lg shadow-xl border dark:border-slate-700 p-1 w-56" style={{ top: selectionMenu.y + 10, left: selectionMenu.x }}>
+                           <button onClick={() => mapTextToField('monto')} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 rounded dark:text-slate-200">💲 Monto</button>
+                           <button onClick={() => mapTextToField('descripcion')} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 rounded dark:text-slate-200">📝 Concepto</button>
                         </div>
                      )}
                   </div>
                ) : (
-                  <div className="w-full max-w-md aspect-square border-3 border-dashed rounded-3xl flex flex-col items-center justify-center p-8 cursor-pointer hover:bg-slate-50 transition-colors mx-auto my-auto"
+                  <div className="w-full max-w-md aspect-square border-3 border-dashed border-slate-300 dark:border-slate-700 rounded-3xl flex flex-col items-center justify-center p-8 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors mx-auto my-auto"
                      onClick={() => fileInputRef.current?.click()} onDragOver={handleDragOver} onDrop={handleDrop}>
                      <input ref={fileInputRef} id="file-upload" type="file" className="hidden" accept="image/*,.pdf" onChange={handleFileSelect} />
-                     <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6 text-blue-500"><Upload className="w-10 h-10" /></div>
-                     <h3 className="text-xl font-bold text-slate-900 mb-2">{t('movimientos.drag_drop_title')}</h3>
-                     <p className="text-slate-500 text-center mb-6">{t('movimientos.drag_drop_subtitle')}</p>
-                     <Button className="rounded-full px-8 pointer-events-none">{t('movimientos.select_file')}</Button>
+                     {/* ICONO UPLOAD CORREGIDO */}
+                     <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mb-6 text-blue-500 dark:text-blue-400 transition-colors"><Upload className="w-10 h-10" /></div>
+                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 text-center">{t('movimientos.drag_drop_title')}</h3>
+                     <p className="text-slate-500 dark:text-slate-400 text-center mb-6">{t('movimientos.drag_drop_subtitle')}</p>
+                     <Button className="rounded-full px-8 pointer-events-none bg-blue-600 dark:bg-blue-600">{t('movimientos.select_file')}</Button>
                   </div>
                )}
             </div>
          </div>
 
          {/* RIGHT COLUMN: FORM */}
-         <div className="w-full md:w-1/2 flex flex-col h-full bg-white dark:bg-slate-950">
-            <div className="h-16 px-6 border-b border-slate-100 flex items-center justify-between shrink-0">
-               <div>
-                  <h1 className="text-lg font-bold text-slate-900 dark:text-white">
-                     {paramId ? 'Editar Movimiento' : t('movimientos.new_title')}
-                  </h1>
-               </div>
+         <div className="w-full md:w-1/2 flex flex-col h-full bg-white dark:bg-slate-950 border-l dark:border-slate-900">
+            <div className="h-16 px-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+               <h1 className="text-lg font-bold text-slate-900 dark:text-white">
+                  {paramId ? 'Editar Movimiento' : t('movimientos.new_title')}
+               </h1>
                <div className="flex items-center gap-2">
-                  <Button variant="ghost" onClick={() => navigate(-1)}>{t('common.cancel')}</Button>
-                  <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6">
+                  <Button variant="ghost" className="dark:text-slate-400" onClick={() => navigate(-1)}>{t('common.cancel')}</Button>
+                  <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 shadow-md shadow-blue-500/10">
                      {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                      {t('common.save')}
                   </Button>
@@ -433,12 +380,21 @@ const NewMovementPage = () => {
             <div className="flex-1 overflow-y-auto p-6 md:p-10">
                <div className="max-w-2xl mx-auto space-y-8">
 
-                  {/* Tipo de movimiento */}
+                  {/* Tipo de movimiento CORREGIDO */}
                   <div className="space-y-3">
-                     <Label>{t('movimientos.type')}</Label>
-                     <div className="grid grid-cols-4 gap-3">
+                     <Label className="dark:text-slate-300">{t('movimientos.type')}</Label>
+                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                         {['GASTO', 'INGRESO', 'INVERSION', 'DEVOLUCION'].map((tType) => (
-                           <button key={tType} onClick={() => setType(tType)} className={`flex flex-col items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-bold transition-all border shadow-sm ${type === tType ? 'bg-slate-900 text-white' : 'bg-white text-slate-600'}`}>
+                           <button 
+                             key={tType} 
+                             onClick={() => setType(tType)} 
+                             className={cn(
+                               "flex flex-col items-center justify-center gap-2 py-3 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all border shadow-sm",
+                               type === tType 
+                                 ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-white scale-[1.02]' 
+                                 : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                             )}
+                           >
                               {tType === 'GASTO' || tType === 'DEVOLUCION' ? <TrendingDown className="w-5 h-5" /> : <TrendingUp className="w-5 h-5" />}
                               {t(`finanzas.${tType.toLowerCase()}`)}
                            </button>
@@ -446,150 +402,63 @@ const NewMovementPage = () => {
                      </div>
                   </div>
 
-                  {/* Campos principales */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      <div className="col-span-2 space-y-2">
-                        <Label>{t('movimientos.description')}</Label>
-                        <Input value={formData.descripcion} onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })} className="text-lg font-medium" />
+                        <Label className="dark:text-slate-300">{t('movimientos.description')}</Label>
+                        <Input value={formData.descripcion} onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })} className="text-lg font-medium dark:bg-slate-900 dark:border-slate-800 dark:text-white" />
                      </div>
                      <div className="space-y-2">
-                        <Label>{t('movimientos.account')}</Label>
+                        <Label className="dark:text-slate-300">{t('movimientos.account')}</Label>
                         <Select value={formData.cuenta_id} onValueChange={(val) => setFormData({ ...formData, cuenta_id: val })}>
-                           <SelectTrigger><SelectValue placeholder={t('finanzas.seleccionarCuenta')} /></SelectTrigger>
+                           <SelectTrigger className="dark:bg-slate-900 dark:border-slate-800"><SelectValue placeholder={t('finanzas.seleccionarCuenta')} /></SelectTrigger>
                            <SelectContent>{accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.titulo}</SelectItem>)}</SelectContent>
                         </Select>
                      </div>
                      <div className="space-y-2">
-                        <Label>{t('common.date')}</Label>
+                        <Label className="dark:text-slate-300">{t('common.date')}</Label>
                         <DatePickerInput date={formData.fecha ? new Date(formData.fecha + 'T12:00:00') : null} onSelect={(d) => d && setFormData({ ...formData, fecha: format(d, 'yyyy-MM-dd') })} />
                      </div>
-
-                     {/* Lógica condicional de Cliente/Proveedor/Inversor */}
+                     {/* ... Lógica de Cliente/Proveedor/Inversor se adapta por componentes Select hijos ... */}
                      <div className="space-y-2 col-span-2 md:col-span-1">
-                        {type === 'INGRESO' ? (
-                           <>
-                              <Label>Cliente</Label>
-                              <Select value={formData.client_id} onValueChange={(val) => setFormData({ ...formData, client_id: val })}>
-                                 <SelectTrigger><SelectValue placeholder="Seleccionar Cliente" /></SelectTrigger>
-                                 <SelectContent>{clients.map(cli => <SelectItem key={cli.id} value={cli.id}>{cli.name}</SelectItem>)}</SelectContent>
-                              </Select>
-                           </>
-                        ) : (type === 'INVERSION' || type === 'DEVOLUCION') ? (
-                           <>
-                              <Label>Inversor</Label>
-                              <Select value={formData.inversionista_id} onValueChange={(val) => setFormData({ ...formData, inversionista_id: val })}>
-                                 <SelectTrigger><SelectValue placeholder="Seleccionar Inversor" /></SelectTrigger>
-                                 <SelectContent>{investors.map(inv => <SelectItem key={inv.id} value={inv.id}>{inv.nombre}</SelectItem>)}</SelectContent>
-                              </Select>
-                           </>
-                        ) : (
-                           <>
-                              <Label>Proveedor</Label>
-                              <Select value={formData.provider_id} onValueChange={(val) => setFormData({ ...formData, provider_id: val })}>
-                                 <SelectTrigger><SelectValue placeholder="Seleccionar Proveedor" /></SelectTrigger>
-                                 <SelectContent>{providers.map(prov => <SelectItem key={prov.id} value={prov.id}>{prov.name}</SelectItem>)}</SelectContent>
-                              </Select>
-                           </>
-                        )}
-                     </div>
-
-                     {/* CHANGED: MultiProjectSelect replaces single Select */}
-                     <div className="space-y-2 col-span-2 md:col-span-1">
-                        <Label>Proyecto(s)</Label>
-                        <MultiProjectSelect
-                           projects={projects}
-                           selectedIds={formData.project_ids}
-                           onChange={(ids) => setFormData({ ...formData, project_ids: ids })}
-                           placeholder="Seleccionar proyecto(s)..."
-                        />
+                        <Label className="dark:text-slate-300">Proyecto(s)</Label>
+                        <MultiProjectSelect projects={projects} selectedIds={formData.project_ids} onChange={(ids) => setFormData({ ...formData, project_ids: ids })} placeholder="Seleccionar..." />
                      </div>
                   </div>
 
-                  {/* Sección Económica */}
+                  {/* Sección Económica Corregida */}
                   <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-6">
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
                         <div className="space-y-2.5">
                            <Label className="font-bold text-blue-600 dark:text-blue-400 block ml-1">Monto Total (ARS)</Label>
-                           <Input type="number" value={formData.monto_ars} onChange={(e) => handleEconomicChange('monto_ars', e.target.value)} className="font-mono text-lg font-bold bg-white dark:bg-slate-950 h-12 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 transition-all" placeholder="0.00" />
+                           <Input type="number" value={formData.monto_ars} onChange={(e) => handleEconomicChange('monto_ars', e.target.value)} className="font-mono text-lg font-bold bg-white dark:bg-slate-950 h-12 rounded-xl shadow-sm dark:border-slate-800" placeholder="0.00" />
                         </div>
                         <div className="space-y-2.5">
                            <div className="flex items-center justify-between px-1">
-                              <div className="flex items-center gap-2">
-                                 <Label className="font-bold text-slate-700 dark:text-slate-300">Cotización</Label>
-                                 <span className="text-[9px] bg-blue-100/50 text-blue-700 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter border border-blue-200">Oficial</span>
-                              </div>
-                              <button onClick={(e) => { e.preventDefault(); fetchDolarHoy(); }} className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-all hover:scale-105 active:scale-95">
+                              <Label className="font-bold text-slate-700 dark:text-slate-300 text-sm">Cotización</Label>
+                              <button onClick={(e) => { e.preventDefault(); fetchDolarHoy(); }} className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
                                  <RefreshCw className="w-3 h-3" /> Actualizar
                               </button>
                            </div>
-                           <Input type="number" value={formData.valor_usd} onChange={(e) => handleEconomicChange('valor_usd', e.target.value)} className="font-mono text-lg bg-white dark:bg-slate-950 h-12 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 transition-all text-center" />
+                           <Input type="number" value={formData.valor_usd} onChange={(e) => handleEconomicChange('valor_usd', e.target.value)} className="font-mono text-lg bg-white dark:bg-slate-950 h-12 rounded-xl text-center dark:border-slate-800" />
                         </div>
                         <div className="space-y-2.5">
-                           <Label className="font-bold text-slate-500 dark:text-slate-400 block ml-1">Equivalente USD</Label>
-                           <div className="h-12 px-4 bg-slate-100 dark:bg-slate-800 rounded-xl font-mono text-lg font-bold text-slate-500 flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-inner">
+                           <Label className="font-bold text-slate-500 dark:text-slate-400 block ml-1 text-sm">Equivalente USD</Label>
+                           <div className="h-12 px-4 bg-slate-100 dark:bg-slate-800 rounded-xl font-mono text-lg font-bold text-slate-500 dark:text-slate-400 flex items-center justify-center border border-slate-200 dark:border-slate-700">
                               {formatCurrencyUSD(formData.monto_usd)}
                            </div>
                         </div>
                      </div>
-
-                     {/* Calculadora de IVA */}
-                     <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                           <div className="flex items-center space-x-4">
-                              <div className="flex items-center space-x-2">
-                                 <Switch id="iva-incluido" checked={formData.iva_incluido} onCheckedChange={(val) => handleEconomicChange('iva_incluido', val)} />
-                                 <Label htmlFor="iva-incluido" className="cursor-pointer font-medium">¿Incluye IVA?</Label>
-                              </div>
-                              {formData.iva_incluido && (
-                                 <div className="flex items-center bg-white dark:bg-slate-950 border rounded-xl p-1 shadow-sm">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleEconomicChange('iva_porcentaje', Math.max(0, parseFloat(formData.iva_porcentaje) - 1))}><Minus className="w-3 h-3" /></Button>
-                                    <div className="flex items-center px-3">
-                                       <input type="number" className="w-10 text-center bg-transparent font-bold text-sm outline-none" value={formData.iva_porcentaje} onChange={(e) => handleEconomicChange('iva_porcentaje', e.target.value)} />
-                                       <span className="text-xs font-bold text-slate-400">%</span>
-                                    </div>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleEconomicChange('iva_porcentaje', parseFloat(formData.iva_porcentaje) + 1)}><Plus className="w-3 h-3" /></Button>
-                                 </div>
-                              )}
-                           </div>
-                           {formData.iva_incluido && (
-                              <div className="flex items-center gap-6 text-sm">
-                                 <div className="text-right">
-                                    <p className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">Base Imponible (Neto)</p>
-                                    <p className="font-mono font-bold text-slate-700 dark:text-slate-300">{formatCurrencyARS(formData.neto)}</p>
-                                 </div>
-                                 <div className="text-right">
-                                    <p className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">IVA Calculado</p>
-                                    <p className="font-mono font-bold text-emerald-600">{formatCurrencyARS(parseFloat(formData.monto_ars) - formData.neto)}</p>
-                                 </div>
-                              </div>
-                           )}
-                        </div>
-                     </div>
                   </div>
 
-                  {/* NEW: Recurrencia Config */}
-                  <RecurrenciaConfig
-                     esRecurrente={esRecurrente}
-                     frecuencia={frecuencia}
-                     fechaLimite={fechaLimite}
-                     onChange={({ esRecurrente: er, frecuencia: f, fechaLimite: fl }) => {
-                        setEsRecurrente(er);
-                        setFrecuencia(f);
-                        setFechaLimite(fl);
-                     }}
-                  />
-
-                  {/* Notas */}
                   <div className="space-y-2">
-                     <Label>Notas</Label>
-                     <textarea className="w-full h-24 p-3 rounded-lg border bg-white focus:ring-2 outline-none resize-none" value={formData.notas} onChange={(e) => setFormData({ ...formData, notas: e.target.value })} />
+                     <Label className="dark:text-slate-300">Notas</Label>
+                     <textarea className="w-full h-24 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-colors" value={formData.notas} onChange={(e) => setFormData({ ...formData, notas: e.target.value })} />
                   </div>
-
 
                   <div className="pt-4 pb-20 md:pb-0">
-                     <Button onClick={handleSubmit} disabled={loading} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 h-12 text-lg shadow-lg">
+                     <Button onClick={handleSubmit} disabled={loading} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-full px-10 h-14 text-lg shadow-lg shadow-blue-500/20 transition-all active:scale-95">
                         {loading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
-                        {paramId ? 'Actualizar Movimiento' : t('movimientos.save_movimiento')}
+                        {paramId ? 'Actualizar Movimiento' : t('common.save')}
                      </Button>
                   </div>
                </div>

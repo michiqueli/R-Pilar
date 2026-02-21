@@ -14,8 +14,6 @@ const ProjectTasksTab = ({ projectId }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  // NUEVO: Estado del filtro elevado al padre
   const [activeFilter, setActiveFilter] = useState('TODAS');
 
   const fetchTasks = async () => {
@@ -46,7 +44,6 @@ const ProjectTasksTab = ({ projectId }) => {
     fetchTasks();
   }, [projectId, refreshKey]);
 
-  // Cálculo de contadores para los botones del header
   const counts = useMemo(() => ({
     TODAS: tasks.length,
     PENDIENTE: tasks.filter(t => t.estado === 'PENDIENTE').length,
@@ -66,21 +63,21 @@ const ProjectTasksTab = ({ projectId }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header unificado con filtros y botón de acción */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm gap-4">
+      {/* Header Corregido para Modo Oscuro */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm gap-4 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
                <ListTodo className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-800 leading-none mb-1">Tareas del Proyecto</h3>
-              <p className="text-sm text-slate-500">Gestión de avance y prioridades.</p>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-none mb-1">Tareas del Proyecto</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Gestión de avance y prioridades.</p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {/* GRUPO DE FILTROS (Estilo Selector de Segmentos) */}
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 mr-2">
+            {/* GRUPO DE FILTROS Corregido */}
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 mr-2">
               {['TODAS', 'PENDIENTE', 'EN_CURSO', 'FINALIZADA'].map((f) => (
                 <button
                   key={f}
@@ -88,14 +85,16 @@ const ProjectTasksTab = ({ projectId }) => {
                   className={cn(
                     "px-3 py-1.5 text-[10px] font-black rounded-lg transition-all whitespace-nowrap flex items-center gap-2",
                     activeFilter === f 
-                      ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200" 
-                      : "text-slate-500 hover:text-slate-700"
+                      ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-slate-200 dark:ring-slate-600" 
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                   )}
                 >
                   {f.replace('_', ' ')}
                   <span className={cn(
                     "px-1.5 py-0.5 rounded-md text-[9px]",
-                    activeFilter === f ? "bg-blue-50 text-blue-600" : "bg-slate-200 text-slate-500"
+                    activeFilter === f 
+                      ? "bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300" 
+                      : "bg-slate-200 dark:bg-slate-900 text-slate-500 dark:text-slate-500"
                   )}>
                     {counts[f]}
                   </span>
@@ -103,29 +102,26 @@ const ProjectTasksTab = ({ projectId }) => {
               ))}
             </div>
 
-            {/* BOTÓN DE ACCIÓN PRINCIPAL */}
             <Button 
                 variant="default" 
                 size="sm" 
                 className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-lg shadow-blue-500/20 h-9" 
                 onClick={() => { setTaskToEdit(null); setIsModalOpen(true); }}
             >
-               <Plus className="w-4 h-4" /> Nueva Tarea
+                <Plus className="w-4 h-4" /> Nueva Tarea
             </Button>
           </div>
       </div>
 
-      {/* Tabla con filtro controlado desde afuera */}
       <TasksTable 
         tasks={tasks} 
         proyectoId={projectId}
         onReload={fetchTasks}
         onEdit={handleEdit}
         showProjectColumn={false}
-        externalFilter={activeFilter} // Pasamos el filtro seleccionado
+        externalFilter={activeFilter}
       />
 
-      {/* Modal */}
       <TaskModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

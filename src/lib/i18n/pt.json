@@ -15,6 +15,17 @@
     "settings": "Configurações",
     "users": "Usuários"
   },
+  "analitica": {
+    "title": "Análise Financeira"
+  },
+  "tesoreria": {
+    "title": "Movimentos e Tesouraria",
+    "subtitle": "Monitore e gerencie o fluxo de caixa da sua empresa",
+    "ingresos": "Receitas",
+    "egresos": "Despesas",
+    "liquidezProyectada": "Liquidez Projetada",
+    "nuevoMovimiento": "Novo Movimento"
+  },
   "sidebar": {
     "operation": "Operação",
     "purchasing": "Compras",
