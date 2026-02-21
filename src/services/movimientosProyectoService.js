@@ -9,7 +9,7 @@ export const movimientosProyectoService = {
     try {
       // First try to get from the join table
       const { data: linkedData, error: linkedError } = await supabase
-        .from('movimientos_proyecto')
+        .from('movimiento_proyectos')
         .select(`
           movimiento_id,
           movimiento:inversiones (
@@ -20,7 +20,7 @@ export const movimientosProyectoService = {
             inversionistas (id, nombre)
           )
         `)
-        .eq('project_id', proyectoId);
+        .eq('proyecto_id', proyectoId);
 
       if (linkedError) throw linkedError;
 
@@ -70,7 +70,7 @@ export const movimientosProyectoService = {
     try {
       // Check if already linked
       const { data: existing } = await supabase
-        .from('movimientos_proyecto')
+        .from('movimiento_proyectos')
         .select('id')
         .eq('movimiento_id', movimientoId)
         .maybeSingle();
@@ -79,16 +79,16 @@ export const movimientosProyectoService = {
         // If already linked to another project, update it? Or ignore?
         // Constraint is unique on movimiento_id, so we update
         const { error } = await supabase
-          .from('movimientos_proyecto')
-          .update({ project_id: proyectoId })
+          .from('movimiento_proyectos')
+          .update({ proyecto_id: proyectoId })
           .eq('id', existing.id);
         if (error) throw error;
       } else {
         // Create new link
         const { error } = await supabase
-          .from('movimientos_proyecto')
+          .from('movimiento_proyectos')
           .insert({
-            project_id: proyectoId,
+            proyecto_id: proyectoId,
             movimiento_id: movimientoId
           });
         if (error) throw error;

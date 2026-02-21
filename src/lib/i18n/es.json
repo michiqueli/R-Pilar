@@ -20,7 +20,8 @@
     "settings": "Configuración",
     "logout": "Cerrar Sesión",
     "title": "Gestion de usuarios",
-    "create": "Nuevo Usuario"
+    "create": "Nuevo Usuario",
+    "search":"Buscar Usuarios..."
   },
   "sidebar": {
     "operation": "Operación",
@@ -29,6 +30,7 @@
     "system": "Sistema"
   },
   "common": {
+    "rowsPerPage": "Filas por página",
     "home": "Inicio",
     "new": "Nuevo",
     "today": "Hoy",
@@ -196,6 +198,7 @@
     "done": "Finalizada",
     "low": "Baja",
     "medium": "Media",
+    "search": "Buscar tareas...",
     "high": "Alta",
     "noTasks": "No hay tareas registradas",
     "deleteConfirm": "¿Estás seguro de que quieres eliminar esta tarea?",
@@ -261,6 +264,10 @@
     "contact": "Contacto",
     "status": "Estado",
     "invested": "Invertido",
+    "createFirst":"Registra tu primer Inversor para comenzar",
+    "noInvestors": "No hay inversionistas registrados",
+    "columns": "Columnas",
+    "filters": "Filtros",
     "returned": "Devuelto",
     "netBalance": "Saldo Neto",
     "actions": "Acciones",

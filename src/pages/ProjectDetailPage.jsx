@@ -14,7 +14,7 @@ import ProjectMovimientosTab from '@/components/projects/tabs/ProjectMovimientos
 import ProjectTasksTab from '@/components/projects/tabs/ProjectTasksTab';
 import ProjectDocumentsTab from '@/components/projects/tabs/ProjectDocumentsTab';
 import PlanDeObraTab from '@/components/projects/tabs/PlanDeObraTab';
-import CostosTab from '@/components/projects/tabs/CostosTab';
+import ProyeccionTab from '@/components/projects/tabs/ProyeccionTab'; // ← CHANGED from CostosTab
 import NotFoundPage from '@/components/layout/NotFoundPage';
 import { tokens } from '@/lib/designTokens';
 import usePageTitle from '@/hooks/usePageTitle';
@@ -144,7 +144,7 @@ function ProjectDetailPage() {
               { id: 'tasks', label: 'Tareas' },
               { id: 'movimientos', label: 'Movimientos' },
               { id: 'documents', label: 'Documentos' },
-              { id: 'costos', label: 'Proyección' },
+              { id: 'proyeccion', label: 'Proyección' },
             ]}
             activeTab={activeTab}
             onTabChange={setActiveTab}
@@ -174,8 +174,8 @@ function ProjectDetailPage() {
               {activeTab === 'documents' && (
                 <ProjectDocumentsTab projectId={id} />
               )}
-              {activeTab === 'costos' && (
-                <CostosTab projectId={id} />
+              {activeTab === 'proyeccion' && (
+                <ProyeccionTab projectId={id} />
               )}
             </motion.div>
           </AnimatePresence>

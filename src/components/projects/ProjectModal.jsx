@@ -292,7 +292,7 @@ const ProjectModal = ({ isOpen, onClose, onSuccess, project = null }) => {
                 onClick={handleSubmit} 
                 loading={loading}
               >
-                {t('projects.saveProject')}
+                {t('projects.save')}
               </Button>
             </div>
           </motion.div>

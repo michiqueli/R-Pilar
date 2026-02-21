@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion'; // Añadido para consistencia
+import { motion } from 'framer-motion';
 import PageHeader from '@/components/layout/PageHeader';
 import CarouselMovimientos from '@/components/CarouselMovimientos';
 import MovimientosTesoreriaTable from '@/components/movimientos/MovimientosTesoreriaTable';
@@ -8,23 +8,26 @@ import ViewMovementModal from '@/components/modals/ViewMovementModal';
 import DeleteMovementModal from '@/components/modals/DeleteMovementModal';
 import DuplicateMovementModal from '@/components/modals/DuplicateMovementModal';
 import GraficoLiquidezMejorado from '@/components/GraficoLiquidezMejorado';
+import RecurrenciasPendientesPanel from '@/components/movimientos/RecurrenciasPendientesPanel';
+import ImportMovementsModal from '@/components/movimientos/ImportMovementsModal';
+import BulkActionsBar from '@/components/movimientos/BulkActionsBar';
 
-// UI e Iconos
 import KpiCard from '@/components/ui/KpiCard';
-import { Clock, Wallet } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Clock, Wallet, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrencyARS } from '@/lib/formatUtils';
 
-// Services
 import { movimientosTesoreriaService } from '@/services/movimientosTesoreriaService';
 import { movimientoService } from '@/services/movimientoService';
 import { liquidezProyectadaService } from '@/services/liquidezProyectadaService';
+import { cuentaService } from '@/services/cuentaService';
+import { supabase } from '@/lib/customSupabaseClient';
 
 const MovimientosTesoreriaPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  // States
   const [loading, setLoading] = useState(true);
   const [horizonte, setHorizonte] = useState(30); 
   const [soloEnRiesgo, setSoloEnRiesgo] = useState(false);
@@ -32,7 +35,6 @@ const MovimientosTesoreriaPage = () => {
     return localStorage.getItem('tesoreria_grafico_modo') || 'lineas';
   });
   
-  // Data States
   const [proximosPagos, setProximosPagos] = useState([]);
   const [proximosCobros, setProximosCobros] = useState([]);
   const [estadoCuentas, setEstadoCuentas] = useState([]);
@@ -42,15 +44,35 @@ const MovimientosTesoreriaPage = () => {
   const [cuentasLiquidez, setCuentasLiquidez] = useState([]);
   const [resumenRiesgo, setResumenRiesgo] = useState(null);
   
+  const [accounts, setAccounts] = useState([]);
+  const [projects, setProjects] = useState([]);
+
   const [tableFilters, setTableFilters] = useState({});
   const [modalState, setModalState] = useState({
-    view: false, delete: false, duplicate: false, selectedItem: null
+    view: false, delete: false, duplicate: false, import: false, selectedItem: null
   });
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const handleModoChange = (newMode) => {
     setGraficoModo(newMode);
     localStorage.setItem('tesoreria_grafico_modo', newMode);
   };
+
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      try {
+        const [accData, projRes] = await Promise.all([
+          cuentaService.getCuentasActivas(),
+          supabase.from('projects').select('id, name').eq('is_deleted', false).order('name')
+        ]);
+        if (accData) setAccounts(accData);
+        if (projRes.data) setProjects(projRes.data);
+      } catch (e) {
+        console.error('Error loading catalogs:', e);
+      }
+    };
+    loadCatalogs();
+  }, []);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -121,6 +143,7 @@ const MovimientosTesoreriaPage = () => {
     loadDashboardData();
     loadLiquidez();
     loadTableData();
+    setSelectedIds([]);
   };
 
   const handleDeleteConfirm = async (item) => {
@@ -149,6 +172,9 @@ const MovimientosTesoreriaPage = () => {
           title="Movimientos y Tesorería" 
           description="Gestión financiera, proyección de liquidez y control de cuentas."
         />
+
+        {/* NEW: Recurrencias Pendientes Panel */}
+        <RecurrenciasPendientesPanel onRefresh={handleRefresh} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="h-48">
@@ -219,7 +245,17 @@ const MovimientosTesoreriaPage = () => {
         </div>
 
         <div id="movements-table-section" className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Listado Global de Movimientos</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Listado Global de Movimientos</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => handleModal('import', null, true)}
+              >
+                <Upload className="w-4 h-4" /> Importar
+              </Button>
+            </div>
             <MovimientosTesoreriaTable 
               movimientos={todosMovimientos}
               loading={loading}
@@ -232,9 +268,21 @@ const MovimientosTesoreriaPage = () => {
               onDuplicate={(item) => handleModal('duplicate', item)}
               onNew={() => navigate('/movements/new')}
               onRefresh={handleRefresh}
+              selectable
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
             />
         </div>
       </motion.div>
+
+      {/* Bulk Actions Bar */}
+      <BulkActionsBar
+        selectedIds={selectedIds}
+        onClear={() => setSelectedIds([])}
+        onRefresh={handleRefresh}
+        accounts={accounts}
+        projects={projects}
+      />
 
       {/* Modals */}
       <ViewMovementModal 
@@ -255,6 +303,15 @@ const MovimientosTesoreriaPage = () => {
         movimiento={modalState.selectedItem}
         onCancel={() => handleModal('delete', null, false)}
         onConfirm={handleDeleteConfirm}
+      />
+
+      {/* NEW: Import Modal */}
+      <ImportMovementsModal
+        isOpen={modalState.import}
+        onClose={() => handleModal('import', null, false)}
+        onSuccess={handleRefresh}
+        projects={projects}
+        accounts={accounts}
       />
     </div>
   );

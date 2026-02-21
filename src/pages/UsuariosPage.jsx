@@ -182,7 +182,7 @@ const UsuariosPage = () => {
           labels={{
             showing: 'Mostrando',
             of: 'de',
-            rowsPerPage: 'Filas:',
+            rowsPerPage: 'Filas por pagina: ',
             previous: 'Ant.',
             next: 'Sig.'
           }}

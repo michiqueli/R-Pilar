@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { kpisService } from '@/services/kpisService';
-import { TrendingUp, TrendingDown, DollarSign, RefreshCw, Wallet } from 'lucide-react';
+import { proyeccionService } from '@/services/proyeccionService';
+import { TrendingUp, TrendingDown, DollarSign, RefreshCw, Wallet, Target } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
 import KpiCard from '@/components/ui/KpiCard';
@@ -15,12 +16,17 @@ const KpisTotalesBlock = ({ projectId }) => {
     gastos_totales: 0,
     resultado_total: 0
   });
+  const [totalProyeccion, setTotalProyeccion] = useState(0);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const result = await kpisService.getKpisTotales(projectId);
+      const [result, proyeccion] = await Promise.all([
+        kpisService.getKpisTotales(projectId),
+        proyeccionService.getTotalEstimado(projectId)
+      ]);
       setData(result);
+      setTotalProyeccion(proyeccion);
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -52,7 +58,7 @@ const KpisTotalesBlock = ({ projectId }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <KpiCard
           title="Ingresos Totales"
           value={formatCurrencyARS(data.ingresos_totales)}
@@ -76,6 +82,20 @@ const KpisTotalesBlock = ({ projectId }) => {
           tone={isPositive ? "blue" : "orange"}
           showBar
           description="Margen neto (Ingresos - Gastos)"
+        />
+        {/* NEW: Proyección KPI */}
+        <KpiCard
+          title="Proyección"
+          value={formatCurrencyARS(totalProyeccion)}
+          icon={Target}
+          tone="purple"
+          showBar
+          description="Gastos estimados (carga manual)"
+          secondaryValue={
+            totalProyeccion > 0 && data.gastos_totales > 0
+              ? `${Math.round((data.gastos_totales / totalProyeccion) * 100)}% ejecutado`
+              : undefined
+          }
         />
       </div>
     </div>
