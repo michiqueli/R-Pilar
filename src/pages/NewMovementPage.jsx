@@ -449,7 +449,16 @@ const NewMovementPage = () => {
                         </div>
                      </div>
                   </div>
-
+                  <RecurrenciaConfig
+                     esRecurrente={esRecurrente}
+                     frecuencia={frecuencia}
+                     fechaLimite={fechaLimite}
+                     onChange={({ esRecurrente: er, frecuencia: f, fechaLimite: fl }) => {
+                        setEsRecurrente(er);
+                        setFrecuencia(f);
+                        setFechaLimite(fl);
+                     }}
+                  />
                   <div className="space-y-2">
                      <Label className="dark:text-slate-300">Notas</Label>
                      <textarea className="w-full h-24 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-colors" value={formData.notas} onChange={(e) => setFormData({ ...formData, notas: e.target.value })} />
