@@ -151,7 +151,7 @@ const MovimientosTesoreriaPage = () => {
   const handleDeleteConfirm = async (item) => {
      try {
         await movimientoService.deleteMovimiento(item.id, item.tipo?.toLowerCase());
-        toast({ title: "Movimiento eliminado", className: "bg-green-50 border-green-200" });
+        toast({ title: "Movimiento eliminado", className: "bg-green-50 border-green-200" })
         handleModal('delete', null, false);
         handleRefresh();
      } catch (error) {

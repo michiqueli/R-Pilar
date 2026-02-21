@@ -161,7 +161,7 @@ const MovimientosTesoreriaTable = ({
       toast({
         title: nuevoEstado === 'CONFIRMADO' ? "Movimiento Confirmado" : "Movimiento Pendiente",
         description: `Se ha actualizado el estado de "${mov.descripcion}"`,
-        className: nuevoEstado === 'CONFIRMADO' ? "bg-green-50 border-green-200" : ""
+        className: nuevoEstado === 'CONFIRMADO' ? "border-green-400" : "border-orange-400"
       });
       if (onRefresh) onRefresh(); 
     } catch (error) {
