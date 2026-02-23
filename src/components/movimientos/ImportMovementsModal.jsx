@@ -165,7 +165,7 @@ const ImportMovementsModal = ({
       toast({
         title: 'Importación exitosa',
         description: `Se importaron ${result.count} movimientos.`,
-        className: 'bg-green-50 border-green-200'
+        className: 'border-green-500'
       });
 
       handleClose();
@@ -178,16 +178,12 @@ const ImportMovementsModal = ({
   };
 
   // --- RENDER ---
-  const fields = ['descripcion', 'monto_ars', 'tipo', 'fecha', 'cuenta', 'proyecto', 'proveedor', 'notas'];
+  const fields = ['descripcion', 'monto_ars', 'tipo', 'fecha'];
   const fieldLabels = {
     descripcion: 'Descripción',
     monto_ars: 'Importe',
     tipo: 'Tipo',
     fecha: 'Fecha',
-    cuenta: 'Cuenta',
-    proyecto: 'Proyecto',
-    proveedor: 'Proveedor',
-    notas: 'Notas'
   };
 
   return (

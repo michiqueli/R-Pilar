@@ -224,8 +224,8 @@ export const importMovimientosService = {
    * Genera la plantilla CSV de ejemplo para descarga
    */
   getTemplateCSV() {
-    const headers = ['descripcion', 'monto_ars', 'tipo', 'fecha', 'cuenta', 'proyecto', 'proveedor', 'notas'];
-    const example = ['Compra de materiales', '50000', 'GASTO', '2025-01-15', 'Cuenta Principal', 'Mi Proyecto', 'Proveedor X', 'Notas opcionales'];
+    const headers = ['descripcion', 'monto_ars', 'tipo', 'fecha'];
+    const example = ['Compra de materiales', '50000', 'GASTO', '2025-01-15'];
     return [headers.join(','), example.join(',')].join('\n');
   }
 };
