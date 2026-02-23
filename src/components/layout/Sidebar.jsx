@@ -161,7 +161,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                  {user?.user_metadata?.full_name || user?.name || "User"}
+                  {user?.user_metadata?.full_name || userProfile?.nombre || "User"}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-500 truncate">
                   {user?.email}
