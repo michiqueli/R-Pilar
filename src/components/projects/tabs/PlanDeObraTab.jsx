@@ -6,39 +6,38 @@ import {
   Trash2,
   Edit2,
   DollarSign,
-  AlertCircle,
   Layers,
   RefreshCw,
   TrendingUp,
-  Loader2
+  Loader2,
+  Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/contexts/ThemeProvider';
 import { projectService } from '@/services/projectService';
 import { subpartidaService } from '@/services/subpartidaService';
-import { supabase } from '@/lib/customSupabaseClient';
-import PartidaDetailModal from '@/components/projects/modals/PartidaDetailModal';
 import WorkPlanModal from '@/components/projects/modals/WorkPlanModal';
 import SubpartidaModal from '@/components/projects/SubpartidaModal';
 import EditarSubPartidaModal from '@/components/modals/EditarSubPartidaModal';
 import AsignarPresupuestoModal from '@/components/modals/AsignarPresupuestoModal';
 import SelectPlantillaModal from '@/components/projects/modals/SelectPlantillaModal';
+import GuardarComoPlantillaModal from '@/components/modals/GuardarComoPlantillaModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrencyARS } from '@/lib/formatUtils';
 
-const PlanDeObraTab = ({ projectId }) => {
+const PlanDeObraTab = ({ projectId, projectName }) => {
   const { t } = useTheme();
   const { toast } = useToast();
 
-  // Estados de datos
+  // Data states
   const [partidas, setPartidas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedPartidaId, setExpandedPartidaId] = useState(null);
   const [subpartidasMap, setSubpartidasMap] = useState({});
 
-  // Estados de modales
+  // Modal states
   const [isPartidaModalOpen, setIsPartidaModalOpen] = useState(false);
   const [partidaToEdit, setPartidaToEdit] = useState(null);
   const [selectedPartida, setSelectedPartida] = useState(null);
@@ -50,7 +49,9 @@ const PlanDeObraTab = ({ projectId }) => {
   const [partidaForBudget, setPartidaForBudget] = useState(null);
   const [showSelectPlantilla, setShowSelectPlantilla] = useState(false);
 
-  // 1. AVANCE GLOBAL: Calculado reactivamente sobre el estado de las partidas
+  // NEW: Save as plantilla modal
+  const [showGuardarPlantilla, setShowGuardarPlantilla] = useState(false);
+
   const avanceGlobal = useMemo(() => {
     if (!partidas || partidas.length === 0) return 0;
     const total = partidas.reduce((acc, p) => acc + (Number(p.progreso) || 0), 0);
@@ -60,9 +61,7 @@ const PlanDeObraTab = ({ projectId }) => {
   useEffect(() => {
     if (projectId) loadAllData();
   }, [projectId]);
-  
 
-  // 2. CARGA PROFUNDA INICIAL: Calcula promedios reales antes de mostrar la página
   const loadAllData = async () => {
     setLoading(true);
     try {
@@ -70,14 +69,12 @@ const PlanDeObraTab = ({ projectId }) => {
 
       const fullData = await Promise.all(partidasData.map(async (partida) => {
         const subs = await subpartidaService.getSubpartidas(partida.id);
-
         let promedioCalculado = 0;
         if (subs && subs.length > 0) {
           promedioCalculado = Math.round(
             subs.reduce((acc, s) => acc + (Number(s.avance_pct) || 0), 0) / subs.length
           );
         }
-
         return {
           ...partida,
           progreso: promedioCalculado,
@@ -87,10 +84,7 @@ const PlanDeObraTab = ({ projectId }) => {
       }));
 
       const newMap = {};
-      fullData.forEach(p => {
-        newMap[p.id] = p.sub_items_preloaded;
-      });
-
+      fullData.forEach(p => { newMap[p.id] = p.sub_items_preloaded; });
       setSubpartidasMap(newMap);
       setPartidas(fullData);
     } catch (error) {
@@ -105,20 +99,12 @@ const PlanDeObraTab = ({ projectId }) => {
     setExpandedPartidaId(expandedPartidaId === partidaId ? null : partidaId);
   };
 
-  // 3. ACTUALIZACIÓN EN TIEMPO REAL: Sincroniza Subpartida -> Padre -> Global
   const handleAvanceChange = async (sub, newVal) => {
     const currentSubs = subpartidasMap[sub.partida_id] || [];
     const updatedSubs = currentSubs.map(s => s.id === sub.id ? { ...s, avance_pct: newVal } : s);
-
-    // Actualizar mapa de hijos
     setSubpartidasMap(prev => ({ ...prev, [sub.partida_id]: updatedSubs }));
-
-    // Calcular nuevo promedio del padre
     const avgProgress = Math.round(updatedSubs.reduce((acc, s) => acc + (Number(s.avance_pct) || 0), 0) / updatedSubs.length);
-
-    // Actualizar estado de partidas (esto dispara el re-render de la barra padre y el avance global)
     setPartidas(prev => prev.map(p => p.id === sub.partida_id ? { ...p, progreso: avgProgress } : p));
-
     try {
       await subpartidaService.updateSubpartida(sub.id, { avance_pct: newVal });
       await projectService.updatePartidaProgress(sub.partida_id, avgProgress);
@@ -127,23 +113,17 @@ const PlanDeObraTab = ({ projectId }) => {
     }
   };
 
-  // 4. COMPONENTE DE BARRA: Con relleno azul a la izquierda y marcadores
   const ProgressBarWithMarkers = ({ value, onChange, isReadOnly = false }) => {
     const safeValue = Math.min(Math.max(Number(value) || 0, 0), 100);
-
     return (
       <div className="space-y-2 w-full">
         <div className="relative h-5 flex items-center group/bar">
-          {/* Marcadores de hito */}
           <div className="absolute inset-0 flex justify-between items-center px-0.5 pointer-events-none">
             {[0, 25, 50, 75, 100].map(m => (
               <div key={m} className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 z-10" />
             ))}
           </div>
-
-          {/* Fondo de la barra */}
           <div className="absolute inset-x-0 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700">
-            {/* Relleno azul animado */}
             <motion.div
               className={cn("h-full shadow-sm", safeValue >= 100 ? 'bg-emerald-500' : 'bg-blue-600')}
               initial={false}
@@ -151,18 +131,13 @@ const PlanDeObraTab = ({ projectId }) => {
               transition={{ duration: 0.3 }}
             />
           </div>
-
           {!isReadOnly && (
             <>
-              <input
-                type="range" min="0" max="100" step="1"
-                value={safeValue}
+              <input type="range" min="0" max="100" step="1" value={safeValue}
                 onChange={(e) => onChange(parseInt(e.target.value))}
                 className="absolute inset-x-0 w-full h-5 opacity-0 cursor-pointer z-20"
               />
-              {/* Thumb visual personalizado */}
-              <div
-                className="absolute w-4.5 h-4.5 bg-blue-600 rounded-full shadow-lg border-2 border-white pointer-events-none z-30 transition-all duration-75"
+              <div className="absolute w-4.5 h-4.5 bg-blue-600 rounded-full shadow-lg border-2 border-white pointer-events-none z-30 transition-all duration-75"
                 style={{ left: `calc(${safeValue}% - 9px)` }}
               />
             </>
@@ -174,10 +149,10 @@ const PlanDeObraTab = ({ projectId }) => {
       </div>
     );
   };
+
   const handleDeletePartida = async (id) => {
     if (!window.confirm('¿Eliminar partida y todas sus subpartidas?')) return;
     try {
-      console.log(id)
       await projectService.deleteWorkItem(id);
       loadAllData();
       toast({ title: 'Partida eliminada.' });
@@ -187,30 +162,20 @@ const PlanDeObraTab = ({ projectId }) => {
   };
 
   const handleUpdateSubpartida = async (updatedData) => {
-  try {
-    // 1. Llamamos al servicio con los datos que vienen del modal
-    await subpartidaService.updateSubpartida(updatedData.id, {
-      nombre: updatedData.nombre,
-      presupuesto: updatedData.presupuesto
-    });
+    try {
+      await subpartidaService.updateSubpartida(updatedData.id, {
+        nombre: updatedData.nombre,
+        presupuesto: updatedData.presupuesto
+      });
+      toast({ title: 'Sub-partida actualizada correctamente.' });
+      await loadAllData();
+    } catch (error) {
+      console.error("Error al actualizar subpartida:", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar en la base de datos.' });
+      throw error;
+    }
+  };
 
-    toast({ title: 'Sub-partida actualizada correctamente.' });
-
-    // 2. Recargamos todo para que se actualicen los totales de la partida padre
-    await loadAllData(); 
-  } catch (error) {
-    console.error("Error al actualizar subpartida:", error);
-    toast({ 
-      variant: 'destructive', 
-      title: 'Error', 
-      description: 'No se pudo guardar en la base de datos.' 
-    });
-    // Lanzamos el error para que el modal no se cierre (mantiene el loading del botón)
-    throw error; 
-  }
-};
-
-  // Handlers de acciones
   const handleAddSubpartida = (e, partidaId) => { e.stopPropagation(); setActivePartidaIdForSub(partidaId); setSubModalOpen(true); }
   const handleOpenEditSubModal = (e, sub) => { e.stopPropagation(); setEditingSubPartida(sub); setEditSubModalOpen(true); };
   const handleDeleteSubpartida = async (e, id, partidaId) => {
@@ -252,7 +217,7 @@ const PlanDeObraTab = ({ projectId }) => {
         </div>
       </div>
 
-      {/* Header Unificado */}
+      {/* Header with actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600">
@@ -263,13 +228,22 @@ const PlanDeObraTab = ({ projectId }) => {
             <p className="text-sm text-slate-500 dark:text-slate-400">Estructura detallada y ejecución técnica.</p>
           </div>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" onClick={() => setShowSelectPlantilla(true)} className="flex-1 sm:flex-none gap-2 rounded-full"><RefreshCw className="w-4 h-4" /> Plantilla</Button>
+        <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+          {/* NEW: Guardar como Plantilla */}
+          <Button
+            variant="outline"
+            onClick={() => setShowGuardarPlantilla(true)}
+            className="flex-1 sm:flex-none gap-2 rounded-full"
+            disabled={partidas.length === 0}
+          >
+            <Save className="w-4 h-4" /> Guardar Plantilla
+          </Button>
+          <Button variant="outline" onClick={() => setShowSelectPlantilla(true)} className="flex-1 sm:flex-none gap-2 rounded-full"><RefreshCw className="w-4 h-4" /> Cargar Plantilla</Button>
           <Button onClick={() => { setPartidaToEdit(null); setIsPartidaModalOpen(true); }} className="flex-1 sm:flex-none gap-2 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/20"><Plus className="w-4 h-4" /> Nueva Partida</Button>
         </div>
       </div>
 
-      {/* Tabla de Partidas */}
+      {/* Partidas Table */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden min-h-[400px]">
         {loading ? (
           <div className="p-20 text-center flex flex-col items-center gap-4">
@@ -290,7 +264,6 @@ const PlanDeObraTab = ({ projectId }) => {
                     )}
                     onClick={() => toggleExpand(p.id)}
                   >
-                    {/* Info de Partida */}
                     <div className="flex items-center gap-4 lg:w-1/4 min-w-0">
                       <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 shadow-sm">
                         {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -302,21 +275,13 @@ const PlanDeObraTab = ({ projectId }) => {
                         </span>
                       </div>
                     </div>
-
-                    {/* Inversión */}
                     <div className="lg:w-[15%] flex flex-col">
                       <p className="text-[10px] uppercase text-slate-400 font-black tracking-widest mb-1">Inversión Total</p>
-                      <p className="text-base font-mono font-bold text-slate-700 dark:text-slate-300 tabular-nums">
-                        {formatCurrencyARS(p.budget || p.presupuesto)}
-                      </p>
+                      <p className="text-base font-mono font-bold text-slate-700 dark:text-slate-300 tabular-nums">{formatCurrencyARS(p.budget || p.presupuesto)}</p>
                     </div>
-
-                    {/* Barra Padre */}
                     <div className="flex-1 min-w-0">
                       <ProgressBarWithMarkers value={p.progreso} isReadOnly={true} />
                     </div>
-
-                    {/* Acciones */}
                     <div className="flex justify-end gap-2 lg:ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setPartidaForBudget(p); setBudgetModalOpen(true); }}>
                         <DollarSign className="w-4 h-4 text-emerald-600" />
@@ -327,21 +292,12 @@ const PlanDeObraTab = ({ projectId }) => {
                       <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-blue-600 bg-blue-50 dark:bg-blue-900/20" onClick={(e) => handleAddSubpartida(e, p.id)}>
                         <Plus className="w-4 h-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="iconSm"
-                        className="text-red-500"
-                        onClick={(e) => {
-                          e.stopPropagation(); // Evita que se cierre/abra la fila
-                          handleDeletePartida(p.id); // <--- AQUÍ LE PASAS EL ID
-                        }}
-                      >
+                      <Button variant="ghost" size="iconSm" className="text-red-500" onClick={(e) => { e.stopPropagation(); handleDeletePartida(p.id); }}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>
 
-                  {/* Subpartidas Desplegadas */}
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div
@@ -359,10 +315,7 @@ const PlanDeObraTab = ({ projectId }) => {
                                   <p className="text-xs font-mono text-blue-600 font-black mt-1 tabular-nums">{formatCurrencyARS(sub.presupuesto)}</p>
                                 </div>
                                 <div className="flex-1">
-                                  <ProgressBarWithMarkers
-                                    value={sub.avance_pct}
-                                    onChange={(val) => handleAvanceChange(sub, val)}
-                                  />
+                                  <ProgressBarWithMarkers value={sub.avance_pct} onChange={(val) => handleAvanceChange(sub, val)} />
                                 </div>
                                 <div className="flex items-center gap-2 border-l pl-4 border-slate-100 dark:border-slate-800 min-w-[80px] justify-end">
                                   <span className="text-xs font-black text-blue-600 mr-2 tabular-nums">{sub.avance_pct}%</span>
@@ -383,7 +336,7 @@ const PlanDeObraTab = ({ projectId }) => {
         )}
       </div>
 
-      {/* Modales */}
+      {/* Modals */}
       <WorkPlanModal
         isOpen={isPartidaModalOpen}
         onClose={() => { setIsPartidaModalOpen(false); setPartidaToEdit(null); loadAllData(); }}
@@ -394,6 +347,17 @@ const PlanDeObraTab = ({ projectId }) => {
       <EditarSubPartidaModal isOpen={editSubModalOpen} onClose={() => setEditSubModalOpen(false)} subPartida={editingSubPartida} onActualizar={handleUpdateSubpartida} />
       <AsignarPresupuestoModal isOpen={budgetModalOpen} onClose={() => setBudgetModalOpen(false)} partida={partidaForBudget} onAsignar={handleAsignarPresupuesto} />
       <SelectPlantillaModal isOpen={showSelectPlantilla} onClose={() => setShowSelectPlantilla(false)} onSuccess={() => loadAllData()} proyectoId={projectId} />
+
+      {/* NEW: Guardar como Plantilla Modal */}
+      <GuardarComoPlantillaModal
+        isOpen={showGuardarPlantilla}
+        onClose={() => setShowGuardarPlantilla(false)}
+        projectId={projectId}
+        projectName={projectName || ''}
+        onSuccess={() => {
+          toast({ title: '✅ Plantilla guardada correctamente' });
+        }}
+      />
     </div>
   );
 };
