@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { authService } from '@/services/authService';
 
@@ -11,6 +11,9 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Guard: ensure loading=false is set exactly once during init
+  const initComplete = useRef(false);
+
   const fetchProfile = async (userId, authUser) => {
     if (!userId) {
       setUserProfile(null);
@@ -19,7 +22,6 @@ export const AuthProvider = ({ children }) => {
     try {
       let profile = await authService.getUserProfile(userId);
       
-      // If profile doesn't exist but we have an authenticated user, try to create it
       if (!profile && authUser) {
         try {
           profile = await authService.createUserProfile(authUser);
@@ -31,59 +33,110 @@ export const AuthProvider = ({ children }) => {
       if (profile) {
         setUserProfile(profile);
       } else {
-        // Fallback: if profile not found or RLS error, we still have the auth user
         console.warn("User profile not found or inaccessible via RLS");
         setUserProfile(null);
       }
     } catch (err) {
       console.error("Error fetching user profile in context:", err);
-      // Graceful fallback - don't crash, just have no profile data
       setUserProfile(null);
     }
   };
 
-  const handleSession = useCallback(async (currentSession) => {
-    setSession(currentSession);
+  // finishInit: resolves initial loading state ONCE, non-blocking
+  const finishInit = useCallback((currentSession) => {
+    if (initComplete.current) return;
+    initComplete.current = true;
+
     const currentUser = currentSession?.user ?? null;
+    setSession(currentSession);
     setUser(currentUser);
-    
+
+    // KEY FIX: Don't await fetchProfile here — set loading=false immediately
+    // so ProtectedRoute unblocks. Profile will update via state when ready.
+    if (currentUser) {
+      fetchProfile(currentUser.id, currentUser); // fire and forget
+    } else {
+      setUserProfile(null);
+    }
+
+    setLoading(false);
+  }, []);
+
+  // handleSession: for subsequent auth changes AFTER init
+  const handleSession = useCallback(async (currentSession) => {
+    const currentUser = currentSession?.user ?? null;
+    setSession(currentSession);
+    setUser(currentUser);
+
     if (currentUser) {
       await fetchProfile(currentUser.id, currentUser);
     } else {
       setUserProfile(null);
     }
-    
-    setLoading(false);
+
+    // Safety: also unblock loading if init somehow didn't complete
+    if (!initComplete.current) {
+      initComplete.current = true;
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    // Initial load
+    let isMounted = true;
+
+    // 1. Auth state listener (handles login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        if (!isMounted) return;
+
+        // If this fires before getSession resolves, use it to complete init
+        if (!initComplete.current) {
+          finishInit(newSession);
+          return;
+        }
+
+        // Post-init events
+        if (event === 'SIGNED_OUT') {
+          await handleSession(null);
+        } else if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          await handleSession(newSession);
+        }
+      }
+    );
+
+    // 2. Primary init: getSession()
     const initAuth = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        await handleSession(session);
+        const { data, error } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        if (error) {
+          console.error("getSession error:", error);
+          finishInit(null);
+          return;
+        }
+        finishInit(data?.session ?? null);
       } catch (error) {
-        console.error("Session init error:", error);
-        await handleSession(null);
+        console.error("getSession exception:", error);
+        if (isMounted) finishInit(null);
       }
     };
 
     initAuth();
 
-    // Listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          await handleSession(null);
-        } else if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          await handleSession(session);
-        }
+    // 3. SAFETY NET: if everything above somehow fails/hangs, unblock after 4s
+    const safetyTimeout = setTimeout(() => {
+      if (!initComplete.current && isMounted) {
+        console.warn('[Auth] Safety timeout triggered — forcing loading=false');
+        finishInit(null);
       }
-    );
+    }, 4000);
 
-    return () => subscription.unsubscribe();
-  }, [handleSession]);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
+    };
+  }, [handleSession, finishInit]);
 
   const login = useCallback(async (email, password) => {
     return await authService.loginWithEmail(email, password);
@@ -102,14 +155,11 @@ export const AuthProvider = ({ children }) => {
   }, [session, user]);
 
   const isAccessAllowed = useCallback(() => {
-    // If we have a profile, check it against business rules
     if (userProfile) {
       const { allowed } = authService.validateUserAccess(userProfile);
       return allowed;
     }
-    
-    // Fallback: if authenticated (user exists) but profile fetch failed (e.g. RLS error), 
-    // we allow access based on the existence of the auth user alone.
+    // Fallback: if authenticated but profile not yet loaded, allow access
     return !!user;
   }, [userProfile, user]);
 
