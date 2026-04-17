@@ -227,7 +227,7 @@ const SettingsPage = () => {
         </div>
 
         <div className="text-center text-xs text-[var(--color-muted-text)] pt-10 pb-4">
-           Caisha SRL • v1.0.3 • {new Date().getFullYear()}
+           KAISHA S R L • v1.0.3 • {new Date().getFullYear()}
         </div>
       </div>
 

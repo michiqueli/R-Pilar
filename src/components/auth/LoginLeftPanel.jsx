@@ -21,7 +21,7 @@ const LoginLeftPanel = () => {
 
       {/* Brand */}
       <div className="relative z-10">
-        <h1 className="text-2xl font-bold tracking-widest text-white mb-2">CAISHA S R L</h1>
+        <h1 className="text-2xl font-bold tracking-widest text-white mb-2">KAISHA S R L</h1>
         <div className="h-1 w-12 bg-[#FFC107] rounded-full" />
       </div>
 
